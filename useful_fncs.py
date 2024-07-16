@@ -14,20 +14,31 @@ import matplotlib.pyplot as plt
 # Eq 5
 
 # let's now make the definition for the coalescence time (no variations for the very small or very larger eccentiricies)
+# this function requires for the untis of each parameter to be inputted
 
-def tgw(a,e,Mmoremass,Mlessmass):
+# let's now make the definition for the coalescence time (no variations for the very small or very larger eccentiricies)
 
-    # assign units and convert to SI units
+def tgw(a,e,Mmoremass,Mlessmass,Data,key,parameter):
+
+    """
+    Calcualte the coalescence time (inspiral time)
+    a = semi major axis (expected in AU or Rsun)
+    e = eccentricity
+    Mmoremass = mass of the more massive compact object (expected in solar masses!)
+    Mlessmass = mass of the less massive compact object (expected in solar masses!)
+    """
+
+    SYS = Data[key]
+    sep_unit = SYS[parameter].attrs['units']
+    if sep_unit == b'Rsol':
+        a = (a * u.Rsun).to(u.m)
+
+    elif sep_unit == b'AU':
+        a = (a * u.AU).to(u.m)      
+
     Mmoremass = (Mmoremass * u.Msun).to(u.kg)
     Mlessmass = (Mlessmass * u.Msun).to(u.kg)
-    # need to select for the more massive and less massive stars in the system using:
 
-    # Add columns for the more and less massive compact object
-
-    # df['M_moremass'] = df[['Mass(1)', 'Mass(2)']].max(axis=1)
-    # df['M_lessmass'] = df[['Mass(1)', 'Mass(2)']].min(axis=1)
-
-    a = (a * u.AU).to(u.m)
     tc = ((((5*((a)**4)*(const.c**5))/(256*(const.G**3)*(Mmoremass)*(Mlessmass)*((Mmoremass)+(Mlessmass))))*(1+(0.27*e**10)+(0.33*e**20)+(0.2*e**1000))*(1-(e**2))**(7/2)))*((3.171e-8)*(u.yr/u.s))*((1e-6)*(u.Myr/u.yr))
 
     return tc.values
