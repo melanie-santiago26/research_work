@@ -43,7 +43,34 @@ def tgw(a,e,Mmoremass,Mlessmass,Data,key,parameter):
 
     return tc.values
 
+"""
+This function will give the maximum separation needed for a bianry to merge within a hubble time given the massesand lifetime of the system
+"""
+def separations(e,Mmoremass,Mlessmass,t_life):
 
+    """
+    e = eccentricity
+    t_hubble = age of the universe
+    Mmoremass = mass of the more massive compact object (expected in solar masses!)
+    Mlessmass = mass of the less massive compact object (expected in solar masses!)
+    """
+
+    age_universe = (13.7e9*u.yr).to(u.s)
+
+    if t_life > age_universe.value:
+        return print("The age of your binary surpasses that of the age of the universe (ypur binary is still forming).")
+
+    else:
+
+        Mmoremass = (Mmoremass * u.Msun).to(u.kg)
+        Mlessmass = (Mlessmass * u.Msun).to(u.kg)
+
+        a_min_den = (1/(5*(const.c**5)))*((age_universe-((t_life*u.Myr).to(u.s)))*(256*(const.G**3)*Mmoremass*Mlessmass*(Mmoremass+Mlessmass)))
+        a_min_num = ((1+(0.27*e**10)+(0.33*e**20)+(0.2*e**1000))*(1-(e**2))**(7/2))**(1/4)
+        a_min_final = ((a_min_den/a_min_num)**(1/4)).to(u.Rsun)
+
+
+        return (a_min_final).value
 
 
 ### This functions serves as a tool to select for WD+WD systems
@@ -72,3 +99,14 @@ def WD_BINARY_BOOLS(dataframe):
 
     # let's return all of these bools
     return(HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool)
+
+
+"""
+This function is used to get all of the WD+WD bianries from one dataframe rather than the separate bools
+"""
+def WDWD_bools(dataframe,stellar_type1 = 'Stellar_Type(1)',stellar_type2 = 'Stellar_Type(2)'):
+
+    BWD_BOOL = np.logical_or(np.logical_and(dataframe[stellar_type1]==12,dataframe[stellar_type2]==11),np.logical_or(np.logical_and(dataframe[stellar_type1]==12,dataframe[stellar_type2]==10),np.logical_or(np.logical_and(dataframe[stellar_type1]==11,dataframe[stellar_type2]==12),np.logical_or(np.logical_and(dataframe[stellar_type1]==11,dataframe[stellar_type2]==10),np.logical_or(np.logical_and(dataframe[stellar_type1]==10,dataframe[stellar_type2]==12),np.logical_or(np.logical_and(dataframe[stellar_type1]==10,dataframe[stellar_type2]==11),np.logical_or(np.logical_and(dataframe[stellar_type1]==10,dataframe[stellar_type2]==10),np.logical_or(np.logical_and(dataframe[stellar_type1]==10,dataframe[stellar_type2]==10),np.logical_and(dataframe[stellar_type1]==11,dataframe[stellar_type2]==11)))))))))
+    return BWD_BOOL
+
+
