@@ -50,7 +50,7 @@ def separations(e,Mmoremass,Mlessmass,t_life):
 
     """
     e = eccentricity
-    t_hubble = age of the universe
+    t_hubble = age of the universe (expected in Myr)
     Mmoremass = mass of the more massive compact object (expected in solar masses!)
     Mlessmass = mass of the less massive compact object (expected in solar masses!)
     """
