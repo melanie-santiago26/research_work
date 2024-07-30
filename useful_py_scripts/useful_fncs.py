@@ -65,9 +65,9 @@ def separations(e,Mmoremass,Mlessmass,t_life):
         Mmoremass = (Mmoremass * u.Msun).to(u.kg)
         Mlessmass = (Mlessmass * u.Msun).to(u.kg)
 
-        a_min_den = (1/(5*(const.c**5)))*((age_universe-((t_life*u.Myr).to(u.s)))*(256*(const.G**3)*Mmoremass*Mlessmass*(Mmoremass+Mlessmass)))
-        a_min_num = ((1+(0.27*e**10)+(0.33*e**20)+(0.2*e**1000))*(1-(e**2))**(7/2))**(1/4)
-        a_min_final = ((a_min_den/a_min_num)**(1/4)).to(u.Rsun)
+        a_min_num = (1/(5*(const.c**5)))*((age_universe-((t_life*u.Myr).to(u.s)))*(256*(const.G**3)*Mmoremass*Mlessmass*(Mmoremass+Mlessmass)))
+        a_min_den = ((1+(0.27*e**10)+(0.33*e**20)+(0.2*e**1000))*(1-(e**2))**(7/2))**(1/4)
+        a_min_final = ((a_min_num/a_min_den)**(1/4)).to(u.Rsun)
 
 
         return (a_min_final).value
