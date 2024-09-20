@@ -790,6 +790,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", dest= 'path',  help="Path to the COMPAS file that contains the output",type=str, default = './')
     parser.add_argument("--filename", dest= 'fname',  help="Name of the COMPAS file",type=str, default = "COMPAS_Output.h5")
+    parser.add_argument("--outfpath", dest= 'outfpath',  help="Path to store the output",type=str, default = "./")
     parser.add_argument("--outfname", dest= 'outfname',  help="Name of the output file where you store the rates, default is append to COMPAS output",type=str, default = "COMPAS_Output.h5")
 
     # For what DCO would you like the rate?  options: ALL, BHBH, BHNS NSNS
@@ -856,7 +857,7 @@ if __name__ == "__main__":
     start_append = time.time()
     if args.append_rates:
         n_redshifts_detection = int(args.max_redshift_detection / args.redshift_step)
-        append_rates(args.path + args.fname, args.outfname, detection_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, n_redshifts_detection,
+        append_rates(args.path + args.fname, args.outfpath+args.outfname, detection_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, n_redshifts_detection,
             maxz=args.max_redshift_detection, sensitivity=args.sensitivity, dco_type=args.dco_type, mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha,
             aSF = args.aSF,  bSF = args.bSF , cSF = args.cSF , dSF = args.dSF ,
             append_binned_by_z = args.binned_rates, redshift_binsize=args.zBinSize)
@@ -875,7 +876,7 @@ if __name__ == "__main__":
     start_plot = time.time()
     chirp_masses = (COMPAS.mass1*COMPAS.mass2)**(3./5.) / (COMPAS.mass1 + COMPAS.mass2)**(1./5.)
     print('almost finished, just plotting your results now')
-    plot_rates(args.path, formation_rate, merger_rate, detection_rate, redshifts, chirp_masses, show_plot = False, mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha, aSF = args.aSF,  bSF = args.bSF , cSF = args.cSF , dSF = args.dSF ,)
+    plot_rates(args.outfpath, formation_rate, merger_rate, detection_rate, redshifts, chirp_masses, show_plot = False, mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha, aSF = args.aSF,  bSF = args.bSF , cSF = args.cSF , dSF = args.dSF ,)
     end_plot = time.time()
 
     print('CI took ', end_CI - start_CI, 's')
