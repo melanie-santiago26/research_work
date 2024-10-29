@@ -326,7 +326,7 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
             ===================================================
             path                   --> [string] Path to the COMPAS file that contains the output
             filename               --> [string] Name of the COMPAS file
-            dco_type               --> [string] Which DCO type to calculate rates for: one of ["all", "BBH", "BHNS", "BNS", "BWD"]
+            dco_type               --> [string] Which DCO type to calculate rates for: one of ["all", "BBH", "BHNS", "BNS", "BWD","COWD"]
             weight_column          --> [string] Name of column in "DoubleCompactObjects" file that contains adaptive sampling weights
                                                     (Leave this as None if you have unweighted samples)
             merges_in_hubble_time  --> [bool]   whether to mask binaries that don't merge in a Hubble time
@@ -794,7 +794,7 @@ if __name__ == "__main__":
     parser.add_argument("--outfname", dest= 'outfname',  help="Name of the output file where you store the rates, default is append to COMPAS output",type=str, default = "COMPAS_Output.h5")
 
     # For what DCO would you like the rate?  options: ALL, BHBH, BHNS NSNS
-    parser.add_argument("--dco_type", dest= 'dco_type',  help="Which DCO type you used to calculate rates, one of: ['all', 'BBH', 'BHNS', 'BNS','BWD] ",type=str, default = "BBH")
+    parser.add_argument("--dco_type", dest= 'dco_type',  help="Which DCO type you used to calculate rates, one of: ['all', 'BBH', 'BHNS', 'BNS','BWD','COWD'] ",type=str, default = "BBH")
     parser.add_argument("--weight", dest= 'weight_column',  help="Name of column w AIS sampling weights, i.e. 'mixture_weight'(leave as None for unweighted samples) ",type=str, default = None)
 
     # Options for the redshift evolution and detector sensitivity
