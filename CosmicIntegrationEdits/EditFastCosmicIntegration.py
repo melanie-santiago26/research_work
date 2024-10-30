@@ -7,11 +7,13 @@ from astropy.cosmology import Planck18 as cosmology # changed from WMAP9 to Plan
 # import scipy
 from scipy.interpolate import interp1d
 from scipy.stats import norm as NormDist
+os.sys.path.append('/home/jovyan/home/CosmicIntegration/') # allows this directory to be seen to look for the files below
 import EditClassCOMPAS
 import selection_effects
 import warnings
 import astropy.units as u
 import argparse
+
 
 def calculate_redshift_related_params(max_redshift=10.0, max_redshift_detection=1.0, redshift_step=0.001, z_first_SF = 10.0):
     """ 
@@ -180,6 +182,9 @@ def find_formation_and_merger_rates(n_binaries, redshifts, times, time_first_SF,
 
     # go through each binary in the COMPAS data
     for i in range(n_binaries):
+
+        print("np.shape(n_formed), np.shape(dPdlogZ), np.shape(COMPAS_metallicites)", np.shape(n_formed), np.shape(dPdlogZ), np.shape(COMPAS_metallicites)) #MELANIE
+        print("shape of weights, metallciites",np.shape(COMPAS_weights), np.shape(metallicities) )
         # calculate formation rate (see Neijssel+19 Section 4) - note this uses dPdlogZ for *closest* metallicity
         formation_rate[i, :] = n_formed * dPdlogZ[:, np.digitize(COMPAS_metallicites[i], metallicities)] / p_draw_metallicity * COMPAS_weights[i]
 
@@ -415,6 +420,7 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
 
     # start by getting the necessary data from the COMPAS file
     COMPAS = EditClassCOMPAS.COMPASData(path, fileName=filename, Mlower=m1_min, Mupper=m1_max, m2_min=m2_min, binaryFraction=fbin, suppress_reminder=True)
+    print("dco_type, pessimistic CE, no RLOF",dco_type,pessimistic_CEE,no_RLOF_after_CEE ) #MELANIE
     COMPAS.setCOMPASDCOmask(types=dco_type, withinHubbleTime=merges_hubble_time, pessimistic=pessimistic_CEE, noRLOFafterCEE=no_RLOF_after_CEE)
     COMPAS.setCOMPASData()
     COMPAS.set_sw_weights(weight_column)
@@ -441,8 +447,9 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
     # Calculate the representative SF mass
     Average_SF_mass_needed = (COMPAS.mass_evolved_per_binary * COMPAS.n_systems)
     print('Average_SF_mass_needed = ', Average_SF_mass_needed) # print this, because it might come in handy to know when writing up results :)
+    print('SFR',sfr) # MELANIE
     n_formed = sfr / Average_SF_mass_needed # Divide the star formation rate density by the representative SF mass
-
+    
 
     # work out the metallicity distribution at each redshift and probability of drawing each metallicity in COMPAS
     dPdlogZ, metallicities, p_draw_metallicity = find_metallicity_distribution(redshifts, min_logZ_COMPAS = np.log(np.min(COMPAS.initialZ)),
@@ -833,23 +840,23 @@ if __name__ == "__main__":
     #####################################
     # Run the cosmic integration
     start_CI = time.time()
-    detection_rate, formation_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, shell_volumes = find_detection_rate(args.path, filename=args.fname, dco_type=args.dco_type, weight_column=args.weight_column,
-                            max_redshift=args.max_redshift, max_redshift_detection=args.max_redshift_detection, redshift_step=args.redshift_step, z_first_SF= args.z_first_SF,
-                            m1_min=args.m1_min*u.Msun, m1_max=args.m1_max*u.Msun, m2_min=args.m2_min*u.Msun, fbin=args.fbin,
-                            aSF = args.aSF, bSF = args.bSF, cSF = args.cSF, dSF = args.dSF, 
-                            mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha, 
-                            sensitivity=args.sensitivity, snr_threshold=args.snr_threshold, 
-                            min_logZ=-12.0, max_logZ=0.0, step_logZ=0.01, Mc_max=300.0, Mc_step=0.1, eta_max=0.25, eta_step=0.01, snr_max=1000.0, snr_step=0.1)
-    
-    # this deals with the "ValueError: max() arg is an empty sequence" because makes it so the masks are nonzero even if no physically true
     # detection_rate, formation_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, shell_volumes = find_detection_rate(args.path, filename=args.fname, dco_type=args.dco_type, weight_column=args.weight_column,
-    #                         pessimistic_CEE=False, no_RLOF_after_CEE=False,
     #                         max_redshift=args.max_redshift, max_redshift_detection=args.max_redshift_detection, redshift_step=args.redshift_step, z_first_SF= args.z_first_SF,
     #                         m1_min=args.m1_min*u.Msun, m1_max=args.m1_max*u.Msun, m2_min=args.m2_min*u.Msun, fbin=args.fbin,
     #                         aSF = args.aSF, bSF = args.bSF, cSF = args.cSF, dSF = args.dSF, 
     #                         mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha, 
     #                         sensitivity=args.sensitivity, snr_threshold=args.snr_threshold, 
     #                         min_logZ=-12.0, max_logZ=0.0, step_logZ=0.01, Mc_max=300.0, Mc_step=0.1, eta_max=0.25, eta_step=0.01, snr_max=1000.0, snr_step=0.1)
+    
+    # this deals with the "ValueError: max() arg is an empty sequence" because makes it so the masks are nonzero even if no physically true
+    detection_rate, formation_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, shell_volumes = find_detection_rate(args.path, filename=args.fname, dco_type=args.dco_type, weight_column=args.weight_column,
+                            pessimistic_CEE=False, no_RLOF_after_CEE=False,
+                            max_redshift=args.max_redshift, max_redshift_detection=args.max_redshift_detection, redshift_step=args.redshift_step, z_first_SF= args.z_first_SF,
+                            m1_min=args.m1_min*u.Msun, m1_max=args.m1_max*u.Msun, m2_min=args.m2_min*u.Msun, fbin=args.fbin,
+                            aSF = args.aSF, bSF = args.bSF, cSF = args.cSF, dSF = args.dSF, 
+                            mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha, 
+                            sensitivity=args.sensitivity, snr_threshold=args.snr_threshold, 
+                            min_logZ=-12.0, max_logZ=0.0, step_logZ=0.01, Mc_max=300.0, Mc_step=0.1, eta_max=0.25, eta_step=0.01, snr_max=1000.0, snr_step=0.1)
     end_CI = time.time()
 
     #####################################
