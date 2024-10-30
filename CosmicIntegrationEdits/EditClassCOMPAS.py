@@ -66,7 +66,7 @@ class COMPASData(object):
             print("          and optionally self.setGridAndMassEvolved() if using a metallicity grid")
 
     def setCOMPASDCOmask(
-        self, types="COWD", withinHubbleTime=True, pessimistic=True, noRLOFafterCEE=True
+        self, types="BWD", withinHubbleTime=True, pessimistic=True, noRLOFafterCEE=True
     ):
         # By default, we mask for BBHs that merge within a Hubble time, assumming
         # the pessimistic CEE prescription (HG donors cannot survive a CEE) and
