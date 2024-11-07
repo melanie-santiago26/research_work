@@ -14,7 +14,6 @@ import warnings
 import astropy.units as u
 import argparse
 
-
 def calculate_redshift_related_params(max_redshift=10.0, max_redshift_detection=1.0, redshift_step=0.001, z_first_SF = 10.0):
     """ 
         Given limits on the redshift, create an array of redshifts, times, distances and volumes
@@ -182,9 +181,6 @@ def find_formation_and_merger_rates(n_binaries, redshifts, times, time_first_SF,
 
     # go through each binary in the COMPAS data
     for i in range(n_binaries):
-
-        print("np.shape(n_formed), np.shape(dPdlogZ), np.shape(COMPAS_metallicites)", np.shape(n_formed), np.shape(dPdlogZ), np.shape(COMPAS_metallicites)) #MELANIE
-        print("shape of weights, metallciites",np.shape(COMPAS_weights), np.shape(metallicities) )
         # calculate formation rate (see Neijssel+19 Section 4) - note this uses dPdlogZ for *closest* metallicity
         formation_rate[i, :] = n_formed * dPdlogZ[:, np.digitize(COMPAS_metallicites[i], metallicities)] / p_draw_metallicity * COMPAS_weights[i]
 
@@ -307,9 +303,9 @@ def find_detection_probability(Mc, eta, redshifts, distances, n_redshifts_detect
         detection_probability[i, snr_below_min] = 0
 
     return detection_probability
-
+# noRLOF_after_CEE = False because we do want to include systems with this condition now
 def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weight_column=None,
-                        merges_hubble_time=True, pessimistic_CEE=True, no_RLOF_after_CEE=True,
+                        merges_hubble_time=True, pessimistic_CEE=True, no_RLOF_after_CEE=False,
                         max_redshift=10.0, max_redshift_detection=1.0, redshift_step=0.001, z_first_SF = 10,
                         m1_min=5 * u.Msun, m1_max=150 * u.Msun, m2_min=0.1 * u.Msun, fbin=0.7,
                         aSF = 0.01, bSF = 2.77, cSF = 2.90, dSF = 4.70,
@@ -331,7 +327,7 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
             ===================================================
             path                   --> [string] Path to the COMPAS file that contains the output
             filename               --> [string] Name of the COMPAS file
-            dco_type               --> [string] Which DCO type to calculate rates for: one of ["all", "BBH", "BHNS", "BNS", "BWD","COWD"]
+            dco_type               --> [string] Which DCO type to calculate rates for: one of ["all", "BBH", "BHNS", "BNS", "BWD"]
             weight_column          --> [string] Name of column in "DoubleCompactObjects" file that contains adaptive sampling weights
                                                     (Leave this as None if you have unweighted samples)
             merges_in_hubble_time  --> [bool]   whether to mask binaries that don't merge in a Hubble time
@@ -420,7 +416,6 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
 
     # start by getting the necessary data from the COMPAS file
     COMPAS = EditClassCOMPAS.COMPASData(path, fileName=filename, Mlower=m1_min, Mupper=m1_max, m2_min=m2_min, binaryFraction=fbin, suppress_reminder=True)
-    print("dco_type, pessimistic CE, no RLOF",dco_type,pessimistic_CEE,no_RLOF_after_CEE ) #MELANIE
     COMPAS.setCOMPASDCOmask(types=dco_type, withinHubbleTime=merges_hubble_time, pessimistic=pessimistic_CEE, noRLOFafterCEE=no_RLOF_after_CEE)
     COMPAS.setCOMPASData()
     COMPAS.set_sw_weights(weight_column)
@@ -429,11 +424,14 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
     
     assert np.log(np.min(COMPAS.initialZ)) != np.log(np.max(COMPAS.initialZ)), "You cannot perform cosmic integration with just one metallicity"
 
-
+    print("line 426, mass1",COMPAS.mass1[0:10])
+    print("line 427, mass2",COMPAS.mass2[0:10])
     # compute the chirp masses and symmetric mass ratios only for systems of interest
     chirp_masses = (COMPAS.mass1*COMPAS.mass2)**(3/5) / (COMPAS.mass1 + COMPAS.mass2)**(1/5)
     etas = COMPAS.mass1 * COMPAS.mass2 / (COMPAS.mass1 + COMPAS.mass2)**2
     n_binaries = len(chirp_masses)
+
+    print("shape of n_binaries",np.shape(n_binaries)) #MELANIE
     # another warning on poor input
     if max(chirp_masses)*(1+max_redshift_detection) < Mc_max:
         warnings.warn("Maximum chirp mass used for detectability calculation is below maximum binary chirp mass * (1+maximum redshift for detectability calculation)", stacklevel=2)
@@ -447,9 +445,8 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
     # Calculate the representative SF mass
     Average_SF_mass_needed = (COMPAS.mass_evolved_per_binary * COMPAS.n_systems)
     print('Average_SF_mass_needed = ', Average_SF_mass_needed) # print this, because it might come in handy to know when writing up results :)
-    print('SFR',sfr) # MELANIE
     n_formed = sfr / Average_SF_mass_needed # Divide the star formation rate density by the representative SF mass
-    
+
 
     # work out the metallicity distribution at each redshift and probability of drawing each metallicity in COMPAS
     dPdlogZ, metallicities, p_draw_metallicity = find_metallicity_distribution(redshifts, min_logZ_COMPAS = np.log(np.min(COMPAS.initialZ)),
@@ -457,6 +454,7 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
                                                                                 mu0=mu0, muz=muz, sigma_0=sigma0, sigma_z=sigmaz, alpha = alpha,
                                                                                 min_logZ=min_logZ, max_logZ=max_logZ, step_logZ = step_logZ)
 
+    print("shape of metallicities",np.shape(metallicities)) #MELANIE
 
     # calculate the formation and merger rates using what we computed above
     formation_rate, merger_rate = find_formation_and_merger_rates(n_binaries, redshifts, times, time_first_SF, n_formed, dPdlogZ,
@@ -801,7 +799,7 @@ if __name__ == "__main__":
     parser.add_argument("--outfname", dest= 'outfname',  help="Name of the output file where you store the rates, default is append to COMPAS output",type=str, default = "COMPAS_Output.h5")
 
     # For what DCO would you like the rate?  options: ALL, BHBH, BHNS NSNS
-    parser.add_argument("--dco_type", dest= 'dco_type',  help="Which DCO type you used to calculate rates, one of: ['all', 'BBH', 'BHNS', 'BNS','BWD','COWD'] ",type=str, default = "BBH")
+    parser.add_argument("--dco_type", dest= 'dco_type',  help="Which DCO type you used to calculate rates, one of: ['all', 'BBH', 'BHNS', 'BNS','BWD] ",type=str, default = "BBH")
     parser.add_argument("--weight", dest= 'weight_column',  help="Name of column w AIS sampling weights, i.e. 'mixture_weight'(leave as None for unweighted samples) ",type=str, default = None)
 
     # Options for the redshift evolution and detector sensitivity
@@ -850,7 +848,7 @@ if __name__ == "__main__":
     
     # this deals with the "ValueError: max() arg is an empty sequence" because makes it so the masks are nonzero even if no physically true
     detection_rate, formation_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, shell_volumes = find_detection_rate(args.path, filename=args.fname, dco_type=args.dco_type, weight_column=args.weight_column,
-                            pessimistic_CEE=False, no_RLOF_after_CEE=False,
+                            pessimistic_CEE=True, no_RLOF_after_CEE=False,
                             max_redshift=args.max_redshift, max_redshift_detection=args.max_redshift_detection, redshift_step=args.redshift_step, z_first_SF= args.z_first_SF,
                             m1_min=args.m1_min*u.Msun, m1_max=args.m1_max*u.Msun, m2_min=args.m2_min*u.Msun, fbin=args.fbin,
                             aSF = args.aSF, bSF = args.bSF, cSF = args.cSF, dSF = args.dSF, 
