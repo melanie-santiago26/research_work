@@ -39,6 +39,7 @@ class COMPASData(object):
         self.DNSmask = None
         self.BHNSmask = None
         self.BWDmask = None
+        self.COWDmask = None
         self.initialZ = None
         self.sw_weights = None
         self.n_systems = None
@@ -88,7 +89,8 @@ class COMPASData(object):
             "BHNS": np.logical_or(np.logical_and(stellar_type_1 == 14, stellar_type_2 == 13), np.logical_and(stellar_type_1 == 13, stellar_type_2 == 14)),
             "BNS": np.logical_and(stellar_type_1 == 13, stellar_type_2 == 13),
             #"BWD": np.logical_and(stellar_type_1 == 10, stellar_type_2 == 10) #simpler case to test things out
-            "BWD": np.logical_or(np.logical_and(stellar_type_1==12,stellar_type_2==11),np.logical_or(np.logical_and(stellar_type_1==12,stellar_type_2==10),np.logical_or(np.logical_and(stellar_type_1==11,stellar_type_2==12),np.logical_or(np.logical_and(stellar_type_1==11,stellar_type_2==10),np.logical_or(np.logical_and(stellar_type_1==10,stellar_type_2==12),np.logical_or(np.logical_and(stellar_type_1==10,stellar_type_2==11),np.logical_or(np.logical_and(stellar_type_1==10,stellar_type_2==10),np.logical_or(np.logical_and(stellar_type_1==10,stellar_type_2==10),np.logical_and(stellar_type_1==11,stellar_type_2==11)))))))))
+            "BWD": np.logical_or(np.logical_and(stellar_type_1==12,stellar_type_2==11),np.logical_or(np.logical_and(stellar_type_1==12,stellar_type_2==10),np.logical_or(np.logical_and(stellar_type_1==11,stellar_type_2==12),np.logical_or(np.logical_and(stellar_type_1==11,stellar_type_2==10),np.logical_or(np.logical_and(stellar_type_1==10,stellar_type_2==12),np.logical_or(np.logical_and(stellar_type_1==10,stellar_type_2==11),np.logical_or(np.logical_and(stellar_type_1==10,stellar_type_2==10),np.logical_or(np.logical_and(stellar_type_1==10,stellar_type_2==10),np.logical_and(stellar_type_1==11,stellar_type_2==11))))))))),
+            "COWD": np.logical_or(stellar_type_1==11,stellar_type_2==11)
         }
 
         # if the user wants to make RLOF or optimistic CEs
@@ -154,7 +156,8 @@ class COMPASData(object):
         self.BHNSmask = type_masks["BHNS"] * hubble_mask * rlof_mask * pessimistic_mask
         self.DNSmask = type_masks["BNS"] * hubble_mask * rlof_mask * pessimistic_mask
         self.BWDmask = type_masks["BWD"] * hubble_mask * rlof_mask * pessimistic_mask
-        print(f"sum(type_masks[BBH]) {sum(type_masks['BBH'])} sum(type_masks[BHNS]) {sum(type_masks['BHNS'])} sum(type_masks[BNS]) {sum(type_masks['BNS'])} sum(type_masks[BWD]) {sum(type_masks['BWD'])} sum(hubble_mask) {sum(hubble_mask)} ")
+        self.COWDmask = type_masks["COWD"] * hubble_mask * rlof_mask * pessimistic_mask
+        print(f"sum(type_masks[BBH]) {sum(type_masks['BBH'])} sum(type_masks[BHNS]) {sum(type_masks['BHNS'])} sum(type_masks[BNS]) {sum(type_masks['BNS'])} sum(type_masks[BWD]) {sum(type_masks['BWD'])} sum(type_masks[COWD]) {sum(type_masks['COWD'])} sum(hubble_mask) {sum(hubble_mask)} ")
 
         self.allTypesMask = type_masks["all"] * hubble_mask * rlof_mask * pessimistic_mask
         self.optimisticmask = pessimistic_mask
