@@ -1,20 +1,23 @@
+## Last updated by Melanie 1/22/2025
+
 import numpy as np
 import h5py  as h5
 import os
 import time
 import matplotlib.pyplot as plt
-from astropy.cosmology import Planck18 as cosmology # changed from WMAP9 to Planck 18
-# import scipy
+import scipy
 from scipy.interpolate import interp1d
 from scipy.stats import norm as NormDist
-os.sys.path.append('/home/jovyan/home/CosmicIntegration/') # allows this directory to be seen to look for the files below
-import EditClassCOMPAS
-import selection_effects
+import NEWClassCOMPAS
+os.sys.path.append('/home/jovyan/COMPAS/compas_python_utils/cosmic_integration/') # to look for files from the compas git repo
+from compas_python_utils.cosmic_integration import selection_effects
 import warnings
 import astropy.units as u
 import argparse
+import importlib
+from compas_python_utils.cosmic_integration.cosmology import get_cosmology
 
-def calculate_redshift_related_params(max_redshift=10.0, max_redshift_detection=1.0, redshift_step=0.001, z_first_SF = 10.0):
+def calculate_redshift_related_params(max_redshift=10.0, max_redshift_detection=1.0, redshift_step=0.001, z_first_SF = 10.0, cosmology=None):
     """ 
         Given limits on the redshift, create an array of redshifts, times, distances and volumes
 
@@ -31,6 +34,8 @@ def calculate_redshift_related_params(max_redshift=10.0, max_redshift_detection=
             distances              --> [list of floats] Equivalent of redshifts but converted to luminosity distances
             shell_volumes          --> [list of floats] Equivalent of redshifts but converted to shell volumes
     """
+    cosmology = get_cosmology(cosmology)
+
     # create a list of redshifts and record lengths
     redshifts = np.arange(0, max_redshift + redshift_step, redshift_step)
     n_redshifts_detection = int(max_redshift_detection / redshift_step)
@@ -80,7 +85,7 @@ def find_metallicity_distribution(redshifts, min_logZ_COMPAS, max_logZ_COMPAS,
     the log-normal distribution is a special case of this log skew normal distribution distribution, and is retrieved by setting 
     the skewness to zero (alpha = 0). 
     Based on the method in Neijssel+19. Default values of mu0=0.035, muz=-0.23, sigma_0=0.39, sigma_z=0.0, alpha =0.0, 
-    retrieve the dP/dZ distribution used in Neijssel+19
+    retrieve the dP/dZ distribution used in Neijssel+19.  See van Son+2022 for skewed log normal distribution.
 
     NOTE: This assumes that metallicities in COMPAS are drawn from a flat in log distribution!
 
@@ -90,11 +95,11 @@ def find_metallicity_distribution(redshifts, min_logZ_COMPAS, max_logZ_COMPAS,
         min_logZ_COMPAS    --> [float]          Minimum logZ value that COMPAS samples
         max_logZ_COMPAS    --> [float]          Maximum logZ value that COMPAS samples
         
-        mu0    =  0.035    --> [float]           location (mean in normal) at redshift 0
-        muz    = -0.25    --> [float]           redshift scaling/evolution of the location
-        sigma_0 = 0.39     --> [float]          Scale (variance in normal) at redshift 0
-        sigma_z = 0.00     --> [float]          redshift scaling of the scale (variance in normal)
-        alpha   = 0.00    --> [float]          shape (skewness, alpha = 0 retrieves normal dist)
+        mu0    =  0.035    --> [float]          location (mean in normal) at redshift 0 
+        muz    = -0.23    --> [float]           redshift scaling/evolution of the location (alpha in Neijssel+19)
+        sigma_0 = 0.39     --> [float]          Scale (variance in normal) at redshift 0 (sigma in Neijssel+19)
+        sigma_z = 0.00     --> [float]          redshift scaling of the scale (variance in normal, 0 in Neijssel+19)
+        alpha   = 0.00    --> [float]           shape (skewness, alpha = 0 retrieves normal dist as in Neijssel+19)
 
         min_logZ           --> [float]          Minimum logZ at which to calculate dPdlogZ (influences normalization)
         max_logZ           --> [float]          Maximum logZ at which to calculate dPdlogZ (influences normalization)
@@ -110,16 +115,16 @@ def find_metallicity_distribution(redshifts, min_logZ_COMPAS, max_logZ_COMPAS,
     sigma = sigma_0* 10**(sigma_z*redshifts)
     
     ##################################
-    # Follow Langer & Norman 2007? in assuming that mean metallicities evolve in z as:
+    # Follow Langer & Norman 2006 in assuming that mean metallicities evolve in z as:
     mean_metallicities = mu0 * 10**(muz * redshifts) 
         
-    # Now we re-write the expected value of ou log-skew-normal to retrieve mu
+    # Now we re-write the expected value of the log-skew-normal to retrieve mu
     beta = alpha/(np.sqrt(1 + (alpha)**2))
     PHI  = NormDist.cdf(beta * sigma) 
-    mu_metallicities = np.log(mean_metallicities/(2.*PHI)) - (sigma**2)/2.   
+    mu_metallicities = np.log(mean_metallicities/2. * 1./(np.exp(0.5*sigma**2) * PHI )  ) 
 
     ##################################
-    # create a range of metallicities (thex-values, or random variables)
+    # create a range of metallicities (the x-values, or random variables)
     log_metallicities = np.arange(min_logZ, max_logZ + step_logZ, step_logZ)
     metallicities = np.exp(log_metallicities)
 
@@ -129,12 +134,12 @@ def find_metallicity_distribution(redshifts, min_logZ_COMPAS, max_logZ_COMPAS,
     dPdlogZ = 2./(sigma[:,np.newaxis]) * NormDist.pdf((log_metallicities -  mu_metallicities[:,np.newaxis])/sigma[:,np.newaxis]) * NormDist.cdf(alpha * (log_metallicities -  mu_metallicities[:,np.newaxis])/sigma[:,np.newaxis] )
 
     ##################################
-    # normalise the distribution over al metallicities
+    # normalise the distribution over all metallicities; this choice of normalisation assumes that metallicities outside the COMPAS range have yields of zero
     norm = dPdlogZ.sum(axis=-1) * step_logZ
     dPdlogZ = dPdlogZ /norm[:,np.newaxis]
 
     ##################################
-    # assume a flat in log distribution in metallicity to find probability of drawing Z in COMPAS
+    # assume a flat in log distribution in sampled metallicity to find probability of drawing Z in COMPAS
     p_draw_metallicity = 1 / (max_logZ_COMPAS - min_logZ_COMPAS)
     
     return dPdlogZ, metallicities, p_draw_metallicity
@@ -153,7 +158,7 @@ def find_formation_and_merger_rates(n_binaries, redshifts, times, time_first_SF,
             times               --> [list of floats] Equivalent of the redshifts in terms of age of the Universe
             n_formed            --> [float]          Binary formation rate (number of binaries formed per year per cubic Gpc) represented by each simulated COMPAS binary
             dPdlogZ             --> [2D float array] Probability of getting a particular logZ at a certain redshift
-            metallicities       --> [list of floats] Metallicities at which dPdlogZ is evaluated
+            metallicities       --> [list of floats] Metallicities at which dPdlogZ is evaluated; if this is None, assume that metallicity weighting is 1 (corresponds to all SFR happening at one fixed metallicity)
             p_draw_metallicity  --> [float]          Probability of drawing a certain metallicity in COMPAS (float because assuming uniform)
             COMPAS_metallicites --> [list of floats] Metallicity of each binary in COMPAS data
             COMPAS_delay_times  --> [list of floats] Delay time of each binary in COMPAS data
@@ -167,7 +172,7 @@ def find_formation_and_merger_rates(n_binaries, redshifts, times, time_first_SF,
     if COMPAS_weights is None:
         COMPAS_weights = np.ones(n_binaries)
 
-    # initalise rates to zero
+    # initialise rates to zero
     n_redshifts = len(redshifts)
     redshift_step = redshifts[1] - redshifts[0]
     formation_rate = np.zeros(shape=(n_binaries, n_redshifts))
@@ -176,13 +181,17 @@ def find_formation_and_merger_rates(n_binaries, redshifts, times, time_first_SF,
     # interpolate times and redshifts for conversion
     times_to_redshifts = interp1d(times, redshifts)
 
-    # make note of the first time at which star formation occured
+    # make note of the first time at which star formation occurred
     age_first_sfr = time_first_SF
 
     # go through each binary in the COMPAS data
     for i in range(n_binaries):
+        # if metallicities array is None, assume all SFR happened at one fixed metallicity
+        if metallicities is None :
+            formation_rate[i, :] = n_formed * COMPAS_weights[i]
         # calculate formation rate (see Neijssel+19 Section 4) - note this uses dPdlogZ for *closest* metallicity
-        formation_rate[i, :] = n_formed * dPdlogZ[:, np.digitize(COMPAS_metallicites[i], metallicities)] / p_draw_metallicity * COMPAS_weights[i]
+        else:
+            formation_rate[i, :] = n_formed * dPdlogZ[:, np.digitize(COMPAS_metallicites[i], metallicities)] / p_draw_metallicity * COMPAS_weights[i]
 
         # calculate the time at which the binary formed if it merges at this redshift
         time_of_formation = times - COMPAS_delay_times[i]
@@ -303,20 +312,20 @@ def find_detection_probability(Mc, eta, redshifts, distances, n_redshifts_detect
         detection_probability[i, snr_below_min] = 0
 
     return detection_probability
-# noRLOF_after_CEE = False because we do want to include systems with this condition now
-def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weight_column=None,
-                        merges_hubble_time=True, pessimistic_CEE=True, no_RLOF_after_CEE=False,
+
+def find_detection_rate(path, dco_type="BBH", merger_output_filename=None, weight_column=None,
+                        merges_hubble_time=True, pessimistic_CEE=True, no_RLOF_after_CEE=True,
                         max_redshift=10.0, max_redshift_detection=1.0, redshift_step=0.001, z_first_SF = 10,
-                        m1_min=5 * u.Msun, m1_max=150 * u.Msun, m2_min=0.1 * u.Msun, fbin=0.7,
+                        use_sampled_mass_ranges=True, m1_min=5 * u.Msun, m1_max=150 * u.Msun, m2_min=0.1 * u.Msun, fbin=0.7,
                         aSF = 0.01, bSF = 2.77, cSF = 2.90, dSF = 4.70,
                         mu0=0.035, muz=-0.23, sigma0=0.39,sigmaz=0., alpha=0.0, 
                         min_logZ=-12.0, max_logZ=0.0, step_logZ=0.01,
                         sensitivity="O1", snr_threshold=8, 
                         Mc_max=300.0, Mc_step=0.1, eta_max=0.25, eta_step=0.01,
-                        snr_max=1000.0, snr_step=0.1):
+                        snr_max=1000.0, snr_step=0.1, cosmology=None):
     """
         The main function of this file. Finds the detection rate, formation rate and merger rate for each
-        binary in a COMPAS file at a series of redshifts defined by intput. Also returns relevant COMPAS
+        binary in a COMPAS file at a series of redshifts defined by input. Also returns relevant COMPAS
         data.
 
         NOTE: This code assumes that assumes that metallicities in COMPAS are drawn from a flat in log distribution
@@ -325,9 +334,9 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
             ===================================================
             == Arguments for finding and masking COMPAS file ==
             ===================================================
-            path                   --> [string] Path to the COMPAS file that contains the output
-            filename               --> [string] Name of the COMPAS file
-            dco_type               --> [string] Which DCO type to calculate rates for: one of ["all", "BBH", "BHNS", "BNS", "BWD"]
+            path                   --> [string] Path to the COMPAS data file that contains the output
+            dco_type               --> [string] Which DCO type to calculate rates for: one of ["all", "BBH", "BHNS", "BNS"]
+            merger_output_filename --> [string] Optional name of output file to store merging DCOs (do not create the extra output if None)
             weight_column          --> [string] Name of column in "DoubleCompactObjects" file that contains adaptive sampling weights
                                                     (Leave this as None if you have unweighted samples)
             merges_in_hubble_time  --> [bool]   whether to mask binaries that don't merge in a Hubble time
@@ -344,6 +353,7 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
             ====================================================================
             == Arguments for determining star forming mass per sampled binary ==
             ====================================================================
+            use_sampled_mass_ranges--> [bool]   whether to use the min and max m1 and m2 samples in lieu of hard cutoffs as below
             m1_min                 --> [float]  Minimum primary mass sampled by COMPAS
             m1_max                 --> [float]  Maximum primary mass sampled by COMPAS
             m2_min                 --> [float]  Minimum secondary mass sampled by COMPAS
@@ -380,12 +390,8 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
             redshifts              --> [list of floats] List of redshifts
             COMPAS                 --> [Object]         Relevant COMPAS data in COMPASData Class
     """
-    print("Running find_detection_rate with the following parameters: path {}, filename {}, dco_type{}, weight_column {}".format(path, filename, dco_type, weight_column)+\
-            "\nmerges_hubble_time {}, pessimistic_CEE {}, no_RLOF_after_CE {},".format(merges_hubble_time, pessimistic_CEE, no_RLOF_after_CEE)+\
-            "\nmax_redshift {}, max_redshift_detection {}, redshift_step {}, z_first_SF {},".format(max_redshift, max_redshift_detection, redshift_step, z_first_SF)+\
-            "\nm1_min {}, m1_max {}, m2_min {}, fbin {},".format(m1_min, m1_max, m2_min, fbin)+\
-            "\naSF {}, bSF {}, cSF {}, dSF {}, mu0 {}, muz {}, sigma0 {}, sigmaz {}, alpha {}, min_logZ {}, max_logZ {}, step_logZ {}".format(aSF, bSF, cSF, dSF, mu0, muz, sigma0,sigmaz, alpha, min_logZ, max_logZ, step_logZ)+\
-            "\nsensitivity {}, snr_threshold {}, Mc_max {}, Mc_step {}, eta_max {}, eta_step {}, snr_max {}, snr_step {}".format(sensitivity, snr_threshold, Mc_max, Mc_step, eta_max, eta_step,snr_max, snr_step))
+
+    cosmology = get_cosmology(cosmology)
 
     # assert that input will not produce errors
     assert max_redshift_detection <= max_redshift, "Maximum detection redshift cannot be below maximum redshift"
@@ -415,29 +421,29 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
         warnings.warn("SNR step is greater than 1.0, large step sizes can produce unpredictable results", stacklevel=2)
 
     # start by getting the necessary data from the COMPAS file
-    COMPAS = EditClassCOMPAS.COMPASData(path, fileName=filename, Mlower=m1_min, Mupper=m1_max, m2_min=m2_min, binaryFraction=fbin, suppress_reminder=True)
+    COMPAS = ClassCOMPAS.COMPASData(path, Mlower=m1_min, Mupper=m1_max, m2_min=m2_min, binaryFraction=fbin, suppress_reminder=True)
     COMPAS.setCOMPASDCOmask(types=dco_type, withinHubbleTime=merges_hubble_time, pessimistic=pessimistic_CEE, noRLOFafterCEE=no_RLOF_after_CEE)
     COMPAS.setCOMPASData()
     COMPAS.set_sw_weights(weight_column)
+    m1=COMPAS.get_COMPAS_variables("BSE_System_Parameters","Mass@ZAMS(1)");
+    m2=COMPAS.get_COMPAS_variables("BSE_System_Parameters","Mass@ZAMS(2)");
+    if use_sampled_mass_ranges:
+        COMPAS.Mlower=min(m1[m1!=m2])*u.Msun    # the m1!=m2 ensures we don't include masses set equal through RLOF at ZAMS
+        COMPAS.Mupper=max(m1)*u.Msun
+        COMPAS.m2_min=min(m2)*u.Msun
     COMPAS.find_star_forming_mass_per_binary_sampling()
 
-    
-    assert np.log(np.min(COMPAS.initialZ)) != np.log(np.max(COMPAS.initialZ)), "You cannot perform cosmic integration with just one metallicity"
 
-    print("line 426, mass1",COMPAS.mass1[0:10])
-    print("line 427, mass2",COMPAS.mass2[0:10])
     # compute the chirp masses and symmetric mass ratios only for systems of interest
     chirp_masses = (COMPAS.mass1*COMPAS.mass2)**(3/5) / (COMPAS.mass1 + COMPAS.mass2)**(1/5)
     etas = COMPAS.mass1 * COMPAS.mass2 / (COMPAS.mass1 + COMPAS.mass2)**2
     n_binaries = len(chirp_masses)
-
-    print("shape of n_binaries",np.shape(n_binaries)) #MELANIE
     # another warning on poor input
-    if max(chirp_masses)*(1+max_redshift_detection) < Mc_max:
+    if max(chirp_masses)*(1+max_redshift_detection) > Mc_max:
         warnings.warn("Maximum chirp mass used for detectability calculation is below maximum binary chirp mass * (1+maximum redshift for detectability calculation)", stacklevel=2)
 
     # calculate the redshifts array and its equivalents
-    redshifts, n_redshifts_detection, times, time_first_SF, distances, shell_volumes = calculate_redshift_related_params(max_redshift, max_redshift_detection, redshift_step, z_first_SF)
+    redshifts, n_redshifts_detection, times, time_first_SF, distances, shell_volumes = calculate_redshift_related_params(max_redshift, max_redshift_detection, redshift_step, z_first_SF, cosmology)
 
     # find the star forming mass per year per Gpc^3 and convert to total number formed per year per Gpc^3
     sfr = find_sfr(redshifts, a = aSF, b = bSF, c = cSF, d = dSF) # functional form from Madau & Dickinson 2014
@@ -449,12 +455,16 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
 
 
     # work out the metallicity distribution at each redshift and probability of drawing each metallicity in COMPAS
-    dPdlogZ, metallicities, p_draw_metallicity = find_metallicity_distribution(redshifts, min_logZ_COMPAS = np.log(np.min(COMPAS.initialZ)),
+    if np.log(np.min(COMPAS.initialZ)) != np.log(np.max(COMPAS.initialZ)): # Will perform integral over metallicities
+        dPdlogZ, metallicities, p_draw_metallicity = find_metallicity_distribution(redshifts, min_logZ_COMPAS = np.log(np.min(COMPAS.initialZ)),
                                                                                 max_logZ_COMPAS = np.log(np.max(COMPAS.initialZ)),
                                                                                 mu0=mu0, muz=muz, sigma_0=sigma0, sigma_z=sigmaz, alpha = alpha,
                                                                                 min_logZ=min_logZ, max_logZ=max_logZ, step_logZ = step_logZ)
+    else:
+        metallicities = None
+        dPdlogZ = 1
+        p_draw_metallicity = 1
 
-    print("shape of metallicities",np.shape(metallicities)) #MELANIE
 
     # calculate the formation and merger rates using what we computed above
     formation_rate, merger_rate = find_formation_and_merger_rates(n_binaries, redshifts, times, time_first_SF, n_formed, dPdlogZ,
@@ -474,24 +484,31 @@ def find_detection_rate(path, filename="COMPAS_Output.h5", dco_type="BBH", weigh
     detection_rate = merger_rate[:, :n_redshifts_detection] * detection_probability \
                     * shell_volumes[:n_redshifts_detection] / (1 + redshifts[:n_redshifts_detection])
 
-    return detection_rate, formation_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, shell_volumes
+    
+    if(merger_output_filename!=None): # Store merger rates in an output text file if specified
+        with open(path+merger_output_filename, 'w') as output:
+            output.write('Mass1atMerger \t Mass2atMerger \t MergerRedshift \t MergerRate \n')
+            output.write('Msun \t Msun \t -- \t Gpc^{-3} yr^{-1} \n')
+            for i in range(n_redshifts_detection):
+                for j in range(n_binaries):
+                    if(merger_rate[j][i]>0):
+                        output.write(f'{COMPAS.mass1[j]:.5f}\t{COMPAS.mass2[j]:.5f}\t{redshifts[i]:.5f}\t{merger_rate[j][i]:.10f}\n')
+    return detection_rate, formation_rate, merger_rate, redshifts, COMPAS
 
 
-def append_rates(path, outfilename, detection_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, n_redshifts_detection,
-    maxz=5., sensitivity="O1", dco_type="BWD", mu0=0.035, muz=-0.23, sigma0=0.39, sigmaz=0., alpha=0., aSF = 0.01, bSF = 2.77, cSF = 2.90, dSF = 4.70,
-    append_binned_by_z = False, redshift_binsize=0.1):
+def append_rates(path, detection_rate, formation_rate, merger_rate, redshifts, COMPAS, n_redshifts_detection,
+    maxz=1., sensitivity="O1", dco_type="BHBH", mu0=0.035, muz=-0.23, sigma0=0.39, sigmaz=0., alpha=0.,
+    append_binned_by_z = False, redshift_binsize=0.1, cosmology=None):
     """
         Append the formation rate, merger rate, detection rate and redshifts as a new group to your COMPAS output with weights hdf5 file
 
         Args:
             path                   --> [string] Path to the COMPAS file that contains the output
-            outfilename            --> [string] Name of the hdf5 file that you want to write your rates to
             detection_rate         --> [2D float array] Detection rate for each binary at each redshift in 1/yr
+            formation_rate         --> [2D float array] Formation rate for each binary at each redshift in 1/yr/Gpc^3
             merger_rate            --> [2D float array] Merger rate for each binary at each redshift in 1/yr/Gpc^3
             redshifts              --> [list of floats] List of redshifts
             COMPAS                 --> [Object]         Relevant COMPAS data in COMPASData Class
-            Average_SF_mass_needed --> [float]          How much star forming mass your simulation represents on average
-            shell_volumes          --> [list of floats] Equivalent of redshifts but converted to shell volumes
             n_redshifts_detection  --> [int]            Number of redshifts in list that should be used to calculate detection rates
 
             maxz                   --> [float] Maximum redshhift up to where we would like to store the data
@@ -499,7 +516,7 @@ def append_rates(path, outfilename, detection_rate, merger_rate, redshifts, COMP
             dco_type               --> [string] Which DCO type you used to calculate rates 
             mu0                    --> [float]  metallicity dist: expected value at redshift 0
             muz                    --> [float]  metallicity dist: redshift evolution of expected value
-            sigma0                 --> [float]  metallicity dist: width at redshhift 0
+            sigma0                 --> [float]  metallicity dist: width at redshift 0
             sigmaz                 --> [float]  metallicity dist: redshift evolution of width
             alpha                  --> [float]  metallicity dist: skewness (0 = lognormal)
 
@@ -509,40 +526,25 @@ def append_rates(path, outfilename, detection_rate, merger_rate, redshifts, COMP
         Returns:
             h_new                  --> [hdf5 file] Compas output file with a new group "rates" with the same shape as DoubleCompactObjects x redshifts
     """
-    print('\nIn append rates: shape redshifts', np.shape(redshifts))
+
+    cosmology = get_cosmology(cosmology)
+
+    print('shape redshifts', np.shape(redshifts))
     print('shape COMPAS.sw_weights', np.shape(COMPAS.sw_weights) )
-    print('COMPAS.DCOmask was set for dco_type', dco_type )
-    print('shape COMPAS COMPAS.DCOmask', np.shape(COMPAS.DCOmask), ' sums to ', np.sum(COMPAS.DCOmask) )
-    print('path', path)
+    print('COMPAS.DCOmask', COMPAS.DCOmask, ' was set for dco_type', dco_type)
+    print('shape COMPAS COMPAS.DCOmask', np.shape(COMPAS.DCOmask) )
 
     #################################################
-    #Open hdf5 file that we will read from
-    print('path', path)
-    with h5.File(path , 'r') as f_COMPAS:
-        
-        # Would you like to write your rates to a different file? 
-        if path == outfilename:
-            print('you cant append directly to the input data, will change outfilename to %s'%(outfilename)+'_1')
-            outfilename = outfilename+'_1'
-
-        #'you want to save your output to a different file!'
-        if os.path.exists(outfilename):
-            print('file', outfilename, 'exists!! You will remove it')
-            os.remove(outfilename)
-            
-        print('writing to ', outfilename)
-        h_new = h5.File(outfilename, 'w')
-
+    #Open hdf5 file that we will write on
+    print('pathToData', path)
+    with h5.File(path, 'r+') as h_new:
         # The rate info is shaped as BSE_Double_Compact_Objects[COMPAS.DCOmask] , len(redshifts)
-        try: 
-            DCO             = f_COMPAS['BSE_Double_Compact_Objects']#
-        except:
-            DCO             = f_COMPAS['DoubleCompactObjects']#
+        DCO             = h_new['BSE_Double_Compact_Objects']#
+        print('shape DCO[SEED]', np.shape(DCO['SEED'][()]) )
 
         #################################################
         # Create a new group where we will store data
-        new_rate_group = 'Rates_mu0{}_muz{}_alpha{}_sigma0{}_sigmaz{}_a{}_b{}_c{}_d{}'.format(mu0, muz, alpha, sigma0, sigmaz, aSF, bSF, cSF, dSF)
-
+        new_rate_group = 'Rates_mu0{}_muz{}_alpha{}_sigma0{}_sigmaz{}'.format(mu0, muz, alpha, sigma0, sigmaz)
         if append_binned_by_z:
             new_rate_group  = new_rate_group + '_zBinned'
 
@@ -558,31 +560,23 @@ def append_rates(path, outfilename, detection_rate, merger_rate, redshifts, COMP
         if append_binned_by_z:
             # Choose how you want to bin the redshift, these represent the left and right boundaries
             redshift_bins = np.arange(0, redshifts[-1]+redshift_binsize, redshift_binsize)
-            print('new crude redshift_bins', redshift_bins)
-            print('old fine redshifts', redshifts)
             fine_binsize    = np.diff(redshifts)[0] #Assunming your redshift bins are equally spaced!!
             print('fine_binsize', fine_binsize)
             #Assuming your crude redshift bin is made up of an integer number of fine z-bins!!!
             i_per_crude_bin = redshift_binsize/fine_binsize 
-            print('i_per_crude_bin', i_per_crude_bin)
             i_per_crude_bin = int(i_per_crude_bin)
 
             ###################
             # convert crude redshift bins to volumnes and ensure all volumes are in Gpc^3
             crude_volumes = cosmology.comoving_volume(redshift_bins).to(u.Gpc**3).value
-            # split volumes into shells and duplicate last shell to keep same length
+            # split volumes into shells 
             crude_shell_volumes    = np.diff(crude_volumes)
-            # crude_shell_volumes    = np.append(crude_shell_volumes, crude_shell_volumes[-1])
 
             ###################
             # convert redshifts to volumnes and ensure all volumes are in Gpc^3
             fine_volumes       = cosmology.comoving_volume(redshifts).to(u.Gpc**3).value
             fine_shell_volumes = np.diff(fine_volumes)
             fine_shell_volumes = np.append(fine_shell_volumes, fine_shell_volumes[-1])
-
-            # Use digitize to assign the redshifts to a bin (detection list is shorter)
-            # digitized     = np.digitize(redshifts, redshift_bins)
-            digitized_det = np.digitize(redshifts[:n_redshifts_detection], redshift_bins)
 
             # Convert your merger_rate back to 1/yr by multiplying by the fine_shell_volumes
             N_dco_in_z_bin      = (merger_rate[:,:] * fine_shell_volumes[:])
@@ -598,30 +592,19 @@ def append_rates(path, outfilename, detection_rate, merger_rate, redshifts, COMP
 
             # loop over all redshift redshift_bins
             for i in range(len(redshift_bins)-1):
-                # print('redshifts[Bool_list[i]]', redshifts[Bool_list[i]])
-                #print('redshifts[[i*i_per_crude_bin:(i+1)*i_per_crude_bin]]', redshifts[i*i_per_crude_bin:(i+1)*i_per_crude_bin])
-
                 # Sum the number of mergers per year, and divide by the new dz volume to get a density
+                # binned_merger_rate[:,i] = np.sum(N_dco_in_z_bin[:,digitized == i+1], axis = 1)/crude_shell_volumes[i]
                 binned_merger_rate[:,i] = np.sum(N_dco_in_z_bin[:,i*i_per_crude_bin:(i+1)*i_per_crude_bin], axis = 1)/crude_shell_volumes[i]
 
                 # only add detected rates for the 'detectable' redshifts
                 if redshift_bins[i] < redshifts[n_redshifts_detection]:
                     # The detection rate was already multiplied by the shell volumes, so we can sum it directly
-                    binned_detection_rate[:,i] = np.sum(detection_rate[:, digitized_det == i+1], axis = 1)
-
-            #  To avoid huge filesizes, we don't really wan't All the data, 
-            # so we're going to save up to some redshift
-            z_index = np.digitize(maxz, redshift_bins) -1
-
-            # The detection_rate is a smaller array, make sure you don't go beyond the end
-            detection_index = z_index if z_index < n_redshifts_detection else n_redshifts_detection
-            
-            save_redshifts        = redshift_bins[:z_index]
-            save_merger_rate      = binned_merger_rate[:,:z_index]
-            # save_detection_rate   = binned_detection_rate[:,:detection_index]
-
+                    binned_detection_rate[:,i] = np.sum(detection_rate[:,i*i_per_crude_bin:(i+1)*i_per_crude_bin], axis = 1)
+            save_redshifts        = redshift_bins
+            save_merger_rate      = binned_merger_rate
+            save_detection_rate   = binned_detection_rate
         else: 
-            #  To avoid huge filesizes, we don't really wan't All the data, 
+            #  To avoid huge filesizes, we don't really want All the data, 
             # so we're going to save up to some redshift
             z_index = np.digitize(maxz, redshifts) -1
 
@@ -629,42 +612,39 @@ def append_rates(path, outfilename, detection_rate, merger_rate, redshifts, COMP
             detection_index = z_index if z_index < n_redshifts_detection else n_redshifts_detection
 
             print('You will only save data up to redshift ', maxz, ', i.e. index', z_index)
-            save_redshifts        = redshifts[:z_index]
+            save_redshifts        = redshifts
             save_merger_rate      = merger_rate[:,:z_index]
-            # save_detection_rate   = detection_rate[:,:detection_index]
+            save_detection_rate   = detection_rate[:,:detection_index]
 
         print('save_redshifts', save_redshifts)
-        print('shape of save_merger_rate ', np.shape(save_merger_rate))
 
         #################################################
-        # Write the rates as a seperate dataset
-        def add_datasets(h_new, new_rate_group, key_name, data):
-            print(f'Adding rate info {key_name} of shape {np.shape(data)}')
+        # Write the rates as a separate dataset
+        # re-arrange your list of rate parameters
+        DCO_to_rate_mask     = COMPAS.DCOmask #save this bool for easy conversion between BSE_Double_Compact_Objects, and CI weights
+        rate_data_list       = [DCO['SEED'][DCO_to_rate_mask], DCO_to_rate_mask , save_redshifts,  save_merger_rate, merger_rate[:,0], save_detection_rate]
+        rate_list_names      = ['SEED', 'DCOmask', 'redshifts',  'merger_rate','merger_rate_z0', 'detection_rate'+sensitivity]
+        for i, data in enumerate(rate_data_list):
+            print('Adding rate info of shape', np.shape(data))
             # Check if dataset exists, if so, just delete it
-            if key_name in h_new[new_rate_group].keys():
-                del h_new[new_rate_group][key_name]
-            # write rates as a new data set
-            h_new[new_rate_group].create_dataset(key_name, data=data)
-
-        add_datasets(h_new, new_rate_group, 'redshifts', save_redshifts)
-        add_datasets(h_new, new_rate_group, 'merger_rate', save_merger_rate)
-        add_datasets(h_new, new_rate_group, 'DCOmask', COMPAS.DCOmask)
-        all_DCO_seeds = DCO['SEED'][()] # you HAVE to define this seperately for large files
-        add_datasets(h_new, new_rate_group, 'SEED', all_DCO_seeds[COMPAS.DCOmask])
+            if rate_list_names[i] in h_new[new_rate_group].keys():
+                del h_new[new_rate_group][rate_list_names[i]]
+            # write rates as a new  data set
+            dataNew     = h_new[new_rate_group].create_dataset(rate_list_names[i], data=data)
 
     #Always close your files again ;)
     h_new.close()
-    print( ('Done with append_rates :) your new files are here: %s'%(outfilename)).replace('//', '/') )
+    print(('Done with append_rates :) your new files are here: {}'.format(path)))
 
 
-def delete_rates(path, filename, mu0=0.035, muz=-0.23, sigma0=0.39, sigmaz=0., alpha=0., append_binned_by_z=False):
+
+def delete_rates(path, mu0=0.035, muz=-0.23, sigma0=0.39, sigmaz=0., alpha=0., append_binned_by_z=False):
     """
         Delete the group containing all the rate information from your COMPAS output with weights hdf5 file
 
 
         Args:
             path                   --> [string] Path to the COMPAS file that contains the output
-            filename               --> [string] Name of the COMPAS file
 
             mu0                    --> [float]  metallicity dist: expected value at redshift 0
             muz                    --> [float]  metallicity dist: redshift evolution of expected value
@@ -676,17 +656,14 @@ def delete_rates(path, filename, mu0=0.035, muz=-0.23, sigma0=0.39, sigmaz=0., a
     """
     #################################################
     #Open hdf5 file that we will write on
-    print('filename', filename)
-    with h5.File(path +'/'+ filename, 'r+') as h_new:
+    print('pathToData', path)
+    with h5.File(path, 'r+') as h_new:
         # The rate info is shaped as BSE_Double_Compact_Objects[COMPAS.DCOmask] , len(redshifts)
-        try:
-            DCO             = h_new['BSE_Double_Compact_Objects']#
-        except:
-            DCO             = h_new['DoubleCompactObjects']#
+        DCO             = h_new['BSE_Double_Compact_Objects']#
 
         #################################################
         # Name of the group that has the data stored
-        new_rate_group = 'Rates_mu0{}_muz{}_alpha{}_sigma0{}_sigmaz{}_a{}'.format(mu0, muz, alpha, sigma0, sigmaz)
+        new_rate_group = 'Rates_mu0{}_muz{}_alpha{}_sigma0{}_sigmaz{}'.format(mu0, muz, alpha, sigma0, sigmaz)
         if append_binned_by_z:
             new_rate_group  = new_rate_group + '_zBinned'
 
@@ -700,13 +677,13 @@ def delete_rates(path, filename, mu0=0.035, muz=-0.23, sigma0=0.39, sigmaz=0., a
             del h_new[new_rate_group]
             #Always close your files again ;)
             h_new.close()
-            print('Done with delete_rates :) your files are here: ', path + '/' + filename )
+            print('Done with delete_rates :) your files are here: ', path)
             return
 
 
 
 
-def plot_rates(save_dir, formation_rate, merger_rate, detection_rate, redshifts, chirp_masses, show_plot = False, mu0=0.035, muz=-0.23, sigma0=0.39, sigmaz=0., alpha=0,aSF = 0.02,  bSF = 1.48, cSF = 4.45, dSF = 5.91):
+def plot_rates(save_dir, formation_rate, merger_rate, detection_rate, redshifts, chirp_masses, show_plot = False, mu0=0.035, muz=-0.23, sigma0=0.39, sigmaz=0., alpha=0):
     """
         Show a summary plot of the results, it also returns the summaries that it computes
 
@@ -762,7 +739,7 @@ def plot_rates(save_dir, formation_rate, merger_rate, detection_rate, redshifts,
 
     axes[1,1].hist(chirp_masses, weights=detection_rate_by_binary, bins=25, range=(0, 50))
     axes[1,1].set_xlabel(r'Chirp mass, $\mathcal{M}_c$', fontsize=fs)
-    axes[1,1].set_ylabel(r'Mass distrbution of detections $[\rm \frac{\mathrm{d}N}{\mathrm{d}\mathcal{M}_c \mathrm{d}yr}]$', fontsize=fs)
+    axes[1,1].set_ylabel(r'Mass distribution of detections $[\rm \frac{\mathrm{d}N}{\mathrm{d}\mathcal{M}_c \mathrm{d}yr}]$', fontsize=fs)
 
     #########################
     #Plotvalues
@@ -774,13 +751,162 @@ def plot_rates(save_dir, formation_rate, merger_rate, detection_rate, redshifts,
         ax.tick_params(labelsize=0.9*fs)
 
     # Save and show :)
-    plt.savefig(save_dir +'Rate_Info'+"mu0%s_muz%s_alpha%s_sigma0%s_sigmaz%s_a%s_b%s_c%s_d%s"%(mu0,muz,alpha,sigma0,sigmaz,aSF, bSF,cSF,dSF)+'.png', bbox_inches='tight') 
+    plt.savefig(save_dir +'Rate_Info'+"mu0%s_muz%s_alpha%s_sigma0%s_sigmaz%s"%(mu0,muz,alpha,sigma0, sigmaz)+'.png', bbox_inches='tight') 
     if show_plot:
         plt.show()
     else:
         plt.close()
 
 
+
+def parse_cli_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--path", dest='path', help="Path to the COMPAS file that contains the output", type=str,
+                        default="COMPAS_Output.h5")
+    
+    ## MELANIE CHANGE - addedd some more flags to make it easier to distinguish paths and files names for me
+    parser.add_argument("--outfpath", dest='outfpath', help="Path to store the output", type=str,
+                        default="./")
+    parser.add_argument("--outfname", dest='outfname', help="Name of the output file where you store the rates, default is to append to COMPAS output", type=str,
+                        default="COMPAS_Output_RATES.h5")
+    
+    # For what DCO would you like the rate?  options: ALL, BHBH, BHNS NSNS, BWD, COWD
+    parser.add_argument("--dco_type", dest='dco_type',
+                        help="Which DCO type you used to calculate rates, one of: ['all', 'BBH', 'BHNS', 'BNS','BWD','COWD'] ",
+                        type=str, default="BBH")
+    parser.add_argument("--weight", dest='weight_column',
+                        help="Name of column w AIS sampling weights, i.e. 'mixture_weight'(leave as None for unweighted samples) ",
+                        type=str, default=None)
+
+    # Options for the redshift evolution and detector sensitivity
+    parser.add_argument("--maxz", dest='max_redshift', help="Maximum redshift to use in array", type=float, default=10)
+    parser.add_argument("--zSF", dest='z_first_SF', help="redshift of first star formation", type=float, default=10)
+    parser.add_argument("--maxzdet", dest='max_redshift_detection',
+                        help="Maximum redshift to calculate detection rates", type=float, default=1)
+    parser.add_argument("--zstep", dest='redshift_step', help="size of step to take in redshift", type=float,
+                        default=0.001)
+    parser.add_argument("--sens", dest='sensitivity',
+                        help="Which detector sensitivity to use: one of ['design', 'O1', 'O3']", type=str, default="O3")
+    parser.add_argument("--snr", dest='snr_threshold', help="What SNR threshold required for a detection", type=float,
+                        default=8)
+
+    # Parameters to calculate the representing SF mass (make sure these match YOUR simulation!)
+    parser.add_argument("--m1min", dest='m1_min', help="Minimum primary mass sampled by COMPAS", type=float, default=5.)
+    parser.add_argument("--m1max", dest='m1_max', help="Maximum primary mass sampled by COMPAS", type=float,
+                        default=150.)
+    parser.add_argument("--m2min", dest='m2_min', help="Minimum secondary mass sampled by COMPAS", type=float,
+                        default=0.1)
+    parser.add_argument("--fbin", dest='fbin', help="Binary fraction used by COMPAS", type=float, default=0.7)
+
+    # Parameters determining dP/dZ and SFR(z), default options from Neijssel 2019
+    parser.add_argument("--mu0", dest='mu0', help="mean metallicity at redshhift 0", type=float, default=0.035)
+    parser.add_argument("--muz", dest='muz', help="redshift evolution of mean metallicity, dPdlogZ", type=float,
+                        default=-0.23)
+    parser.add_argument("--sigma0", dest='sigma0', help="variance in metallicity density distribution, dPdlogZ",
+                        type=float, default=0.39)
+    parser.add_argument("--sigmaz", dest='sigmaz', help="redshift evolution of variance, dPdlogZ", type=float,
+                        default=0.0)
+    parser.add_argument("--alpha", dest='alpha', help="skewness of mtallicity density distribution, dPdlogZ",
+                        type=float, default=0.0)
+    parser.add_argument("--aSF", dest='aSF', help="Parameter for shape of SFR(z)", type=float, default=0.01)
+    parser.add_argument("--bSF", dest='bSF', help="Parameter for shape of SFR(z)", type=float, default=2.77)
+    parser.add_argument("--cSF", dest='cSF', help="Parameter for shape of SFR(z)", type=float, default=2.90)
+    parser.add_argument("--dSF", dest='dSF', help="Parameter for shape of SFR(z)", type=float, default=4.70)
+
+    # Options for the redshift evolution and detector sensitivity
+    parser.add_argument("--dontAppend", dest='append_rates',
+                        help="Prevent the script from appending your rates to the hdf5 file.", action='store_false',
+                        default=True)
+    parser.add_argument("--delete", dest='delete_rates',
+                        help="Delete the rate group from your hdf5 output file (groupname based on dP/dZ parameters)",
+                        action='store_true', default=False)
+    parser.add_argument("--cosmology_name", dest='cosmology_name', help="Cosmology that is used for cosmic integration using the astropy.cosmology class: one of ['Planck13', 'Planck15', 'Planck18', 'WMAP1', 'WMAP3', 'WMAP5', 'WMAP9']", 
+                        type=str, default="Planck18")
+
+    args = parser.parse_args()
+    return args
+
+def set_cosmology(cosmology_name="Planck18"):
+    # Set cosmology using astropy, print a warning if TNG fit is used with Planck18 cosmology (since TNG uses Planck15)
+    if cosmology_name == "Planck18": print("USING PLANCK18 AS COSMOLOGY! If working with TNG fit, you may want to use Planck15 instead for self-consistency.")
+    else: print("Using %s as cosmology!"%cosmology_name)
+
+    return getattr(importlib.import_module('astropy.cosmology'), cosmology_name)
+
+
+
+
+
+def main():
+    # Define command line options for the most commonly varied options
+    args = parse_cli_args()
+    
+    cosmology = get_cosmology(args.cosmology_name)
+
+
+    #####################################
+    # Run the cosmic integration
+
+    # SOON - MELANIE CHANGE - there is sometimes a ValueError: max() argument that sometimes arises that I must figure out how to change soon
+    start_CI = time.time()
+    detection_rate, formation_rate, merger_rate, redshifts, COMPAS = find_detection_rate(
+        args.path,
+        dco_type=args.dco_type,
+        weight_column=args.weight_column,
+        max_redshift=args.max_redshift,
+        max_redshift_detection=args.max_redshift_detection,
+        redshift_step=args.redshift_step,
+        z_first_SF=args.z_first_SF,
+        m1_min=args.m1_min * u.Msun,
+        m1_max=args.m1_max * u.Msun,
+        m2_min=args.m2_min * u.Msun,
+        fbin=args.fbin,
+        aSF=args.aSF, bSF=args.bSF,
+        cSF=args.cSF, dSF=args.dSF,
+        mu0=args.mu0, muz=args.muz,
+        sigma0=args.sigma0,
+        sigmaz=args.sigmaz,
+        alpha=args.alpha,
+        sensitivity=args.sensitivity,
+        snr_threshold=args.snr_threshold,
+        min_logZ=-12.0, max_logZ=0.0,
+        step_logZ=0.01,
+        Mc_max=300.0, Mc_step=0.1,
+        eta_max=0.25, eta_step=0.01,
+        snr_max=1000.0, snr_step=0.1, cosmology=cosmology)
+    end_CI = time.time()
+
+    #####################################
+    # Append your freshly calculated merger rates to the hdf5 file
+    start_append = time.time()
+    if args.append_rates:
+        n_redshifts_detection = int(args.max_redshift_detection / args.redshift_step)
+        append_rates(args.path, detection_rate, formation_rate, merger_rate, redshifts, COMPAS, n_redshifts_detection,
+                     maxz=args.max_redshift_detection, sensitivity=args.sensitivity, dco_type=args.dco_type,
+                     mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha,
+                     append_binned_by_z=False, redshift_binsize=0.05, cosmology=cosmology)
+
+    # or just delete this group if your hdf5 file is getting too big
+    if args.delete_rates:
+        delete_rates(args.path, mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha,
+                     append_binned_by_z=False)
+
+    end_append = time.time()
+
+    #####################################
+    # Plot your result
+    start_plot = time.time()
+    chirp_masses = (COMPAS.mass1 * COMPAS.mass2) ** (3. / 5.) / (COMPAS.mass1 + COMPAS.mass2) ** (1. / 5.)
+    
+    ## MELANIE CHANGE - changed the destination of the plotted rates to correspond to where the outputed file is
+    plot_rates(args.outfpath, formation_rate, merger_rate, detection_rate, redshifts, chirp_masses, show_plot=False,
+               mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha)
+    
+    end_plot = time.time()
+
+    print('CI took ', end_CI - start_CI, 's')
+    print('Appending rates took ', end_append - start_append, 's')
+    print('plot took ', end_plot - start_plot, 's')
 
 
 ##################################################################
@@ -789,102 +915,5 @@ def plot_rates(save_dir, formation_rate, merger_rate, detection_rate, redshifts,
 ###
 ##################################################################
 if __name__ == "__main__":
-
-    #####################################
-    # Define command line options for the most commonly varied options
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--path", dest= 'path',  help="Path to the COMPAS file that contains the output",type=str, default = './')
-    parser.add_argument("--filename", dest= 'fname',  help="Name of the COMPAS file",type=str, default = "COMPAS_Output.h5")
-    parser.add_argument("--outfpath", dest= 'outfpath',  help="Path to store the output",type=str, default = "./")
-    parser.add_argument("--outfname", dest= 'outfname',  help="Name of the output file where you store the rates, default is append to COMPAS output",type=str, default = "COMPAS_Output.h5")
-
-    # For what DCO would you like the rate?  options: ALL, BHBH, BHNS NSNS
-    parser.add_argument("--dco_type", dest= 'dco_type',  help="Which DCO type you used to calculate rates, one of: ['all', 'BBH', 'BHNS', 'BNS','BWD] ",type=str, default = "BBH")
-    parser.add_argument("--weight", dest= 'weight_column',  help="Name of column w AIS sampling weights, i.e. 'mixture_weight'(leave as None for unweighted samples) ",type=str, default = None)
-
-    # Options for the redshift evolution and detector sensitivity
-    parser.add_argument("--maxz", dest= 'max_redshift',  help="Maximum redshift to use in array",type=float, default=10)
-    parser.add_argument("--zSF", dest= 'z_first_SF',  help="redshift of first star formation",type=float, default=10)
-    parser.add_argument("--maxzdet", dest= 'max_redshift_detection',  help="Maximum redshift to calculate detection rates",type=float, default=1)
-    parser.add_argument("--zstep", dest= 'redshift_step',  help="size of step to take in redshift",type=float, default=0.001)
-    parser.add_argument("--sens", dest= 'sensitivity',  help="Which detector sensitivity to use: one of ['design', 'O1', 'O3']",type=str, default = "O3")
-    parser.add_argument("--snr", dest= 'snr_threshold',  help="What SNR threshold required for a detection",type=float, default=8)
-
-    # Parameters to calculate the representing SF mass (make sure these match YOUR simulation!)
-    parser.add_argument("--m1min", dest= 'm1_min',  help="Minimum primary mass sampled by COMPAS",type=float, default=5.) 
-    parser.add_argument("--m1max", dest= 'm1_max',  help="Maximum primary mass sampled by COMPAS",type=float, default=150.) 
-    parser.add_argument("--m2min", dest= 'm2_min',  help="Minimum secondary mass sampled by COMPAS",type=float, default=0.1) 
-    parser.add_argument("--fbin", dest= 'fbin',  help="Binary fraction used by COMPAS",type=float, default=0.7) 
-
-    # Parameters determining dP/dZ and SFR(z), default options from Neijssel 2019
-    parser.add_argument("--mu0", dest= 'mu0',  help="mean metallicity at redshhift 0",type=float, default=0.035)
-    parser.add_argument("--muz", dest= 'muz',  help="redshift evolution of mean metallicity, dPdlogZ",type=float, default=-0.23)
-    parser.add_argument("--sigma0", dest= 'sigma0',  help="variance in metallicity density distribution, dPdlogZ",type=float, default=0.39)
-    parser.add_argument("--sigmaz", dest= 'sigmaz',  help="redshift evolution of variance, dPdlogZ",type=float, default=0.0)
-    parser.add_argument("--alpha", dest= 'alpha',  help="skewness of mtallicity density distribution, dPdlogZ",type=float, default=0.0)
-    parser.add_argument("--aSF", dest= 'aSF',  help="Parameter for shape of SFR(z)",type=float, default=0.01) 
-    parser.add_argument("--bSF", dest= 'bSF',  help="Parameter for shape of SFR(z)",type=float, default=2.77)
-    parser.add_argument("--cSF", dest= 'cSF',  help="Parameter for shape of SFR(z)",type=float, default=2.90)
-    parser.add_argument("--dSF", dest= 'dSF',  help="Parameter for shape of SFR(z)",type=float, default=4.70)
- 
-     # Options for saving your data
-    parser.add_argument("--dontAppend", dest= 'append_rates',  help="Prevent the script from appending your rates to the hdf5 file.", action='store_false', default=True)
-    parser.add_argument("--BinAppend", dest= 'binned_rates',  help="Append your rates in more crude redshift bins to save space.", action='store_true', default=False)
-    parser.add_argument("--redshiftBinSize", dest= 'zBinSize',  help="How big should the crude redshift bins be", type=float, default=0.05)
-    parser.add_argument("--delete", dest= 'delete_rates',  help="Delete the rate group from your hdf5 output file (groupname based on dP/dZ parameters)", action='store_true', default=False)
-
-    args = parser.parse_args()
-
-    #####################################
-    # Run the cosmic integration
-    start_CI = time.time()
-    # detection_rate, formation_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, shell_volumes = find_detection_rate(args.path, filename=args.fname, dco_type=args.dco_type, weight_column=args.weight_column,
-    #                         max_redshift=args.max_redshift, max_redshift_detection=args.max_redshift_detection, redshift_step=args.redshift_step, z_first_SF= args.z_first_SF,
-    #                         m1_min=args.m1_min*u.Msun, m1_max=args.m1_max*u.Msun, m2_min=args.m2_min*u.Msun, fbin=args.fbin,
-    #                         aSF = args.aSF, bSF = args.bSF, cSF = args.cSF, dSF = args.dSF, 
-    #                         mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha, 
-    #                         sensitivity=args.sensitivity, snr_threshold=args.snr_threshold, 
-    #                         min_logZ=-12.0, max_logZ=0.0, step_logZ=0.01, Mc_max=300.0, Mc_step=0.1, eta_max=0.25, eta_step=0.01, snr_max=1000.0, snr_step=0.1)
-    
-    # this deals with the "ValueError: max() arg is an empty sequence" because makes it so the masks are nonzero even if no physically true
-    detection_rate, formation_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, shell_volumes = find_detection_rate(args.path, filename=args.fname, dco_type=args.dco_type, weight_column=args.weight_column,
-                            pessimistic_CEE=True, no_RLOF_after_CEE=False,
-                            max_redshift=args.max_redshift, max_redshift_detection=args.max_redshift_detection, redshift_step=args.redshift_step, z_first_SF= args.z_first_SF,
-                            m1_min=args.m1_min*u.Msun, m1_max=args.m1_max*u.Msun, m2_min=args.m2_min*u.Msun, fbin=args.fbin,
-                            aSF = args.aSF, bSF = args.bSF, cSF = args.cSF, dSF = args.dSF, 
-                            mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha, 
-                            sensitivity=args.sensitivity, snr_threshold=args.snr_threshold, 
-                            min_logZ=-12.0, max_logZ=0.0, step_logZ=0.01, Mc_max=300.0, Mc_step=0.1, eta_max=0.25, eta_step=0.01, snr_max=1000.0, snr_step=0.1)
-    end_CI = time.time()
-
-    #####################################
-    # Append your freshly calculated merger rates to the hdf5 file
-    start_append = time.time()
-    if args.append_rates:
-        n_redshifts_detection = int(args.max_redshift_detection / args.redshift_step)
-        append_rates(args.path + args.fname, args.outfpath+args.outfname, detection_rate, merger_rate, redshifts, COMPAS, Average_SF_mass_needed, n_redshifts_detection,
-            maxz=args.max_redshift_detection, sensitivity=args.sensitivity, dco_type=args.dco_type, mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha,
-            aSF = args.aSF,  bSF = args.bSF , cSF = args.cSF , dSF = args.dSF ,
-            append_binned_by_z = args.binned_rates, redshift_binsize=args.zBinSize)
-
-    # or just delete this group if your hdf5 file is getting too big
-    # !! Make sure to run h5repack from your terminal if you do this!! del doesn't actually free up space
-    if args.delete_rates:
-        delete_rates(args.path, args.fname, mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha, append_binned_by_z=False)
-
-    end_append = time.time()
-
-
-
-    #####################################
-    # Plot your result
-    start_plot = time.time()
-    chirp_masses = (COMPAS.mass1*COMPAS.mass2)**(3./5.) / (COMPAS.mass1 + COMPAS.mass2)**(1./5.)
-    print('almost finished, just plotting your results now')
-    plot_rates(args.outfpath, formation_rate, merger_rate, detection_rate, redshifts, chirp_masses, show_plot = False, mu0=args.mu0, muz=args.muz, sigma0=args.sigma0, sigmaz=args.sigmaz, alpha=args.alpha, aSF = args.aSF,  bSF = args.bSF , cSF = args.cSF , dSF = args.dSF ,)
-    end_plot = time.time()
-
-    print('CI took ', end_CI - start_CI, 's')
-    print('Appending rates took ', end_append - start_append, 's')
-    print('plot took ', end_plot - start_plot, 's')
+    main()
 
