@@ -115,3 +115,64 @@ This function is used to make a selection of binary systems with at least a carb
 """
 def COWD_bool(dataframe,stellar_type1 = 'Stellar_Type(1)',stellar_type2 = 'Stellar_Type(2)'):
     cowd_bool = np.logical_or(dataframe[stellar_type1]==11,dataframe[stellar_type2]==11)
+
+"""
+This functions is to define the lines used as boundaries in check_if_SNIA.
+"""
+def line(x,slope,b):
+    y = slope*x +b
+    return(np.array(y)) 
+
+"""
+This functions takes systems and assigns flags to what type of SN Ia it is if any.
+The boundaries for the mass cuts and SN Ia categorizations come from Shen 2025: https://arxiv.org/abs/2502.04451. 
+"""
+# let's test the function for just the red region
+def check_if_SNIA(mass1,mass2):
+
+    # let's select the masses from the compas output
+    M_more_massive = np.maximum(mass1,mass2)
+    M_less_massive = np.minimum(mass1,mass2)
+
+    # # empty flag arrays that we will add to our dataset later
+    # SN_Ia_HVS = np.empty_like(M_more_massive)
+    # two_star_SNIA = np.empty_like(M_more_massive)
+    # Champagne_Supernova = np.empty_like(M_more_massive)
+
+    # let's now make regimes based on Ken Shen 2025
+    # red region, we define the border cases to be read from left to right so a region does not take systems that are on the left border but it does take its right border
+    # Mass 1 condition
+    red_more_massive_bool = np.logical_and(M_more_massive<1.0,
+                                           M_more_massive>=M_less_massive)
+    # Mass 2 condition
+    red_less_massive_bool = np.logical_and(M_less_massive>=line(M_more_massive,-1.5,1.875),
+                                       M_less_massive<line(M_more_massive,-1.5,2.0))
+
+    # let's now mask which masses fall within the red region
+    SN_Ia_HVS = red_more_massive_bool*red_less_massive_bool
+
+
+    # purple region
+    # Mass 1 condition
+    purple_more_massive_bool = np.logical_and(M_more_massive<1.0,
+                                           M_more_massive>=M_less_massive)
+    # Mass 2 condition
+    purple_less_massive_bool = M_less_massive>=line(M_more_massive,-1.5,2.0)
+    
+    # let's now mask which masses fall within the purple region
+    two_star_SNIA = purple_more_massive_bool*purple_less_massive_bool
+
+
+    # orange region
+    # Mass 1 condition
+    orange_more_massive_bool = np.logical_and(M_more_massive<1.1,
+                                           M_more_massive>=1.0)
+    # Mass 2 condition
+    orange_less_massive_bool = np.logical_and(M_less_massive>line(M_more_massive,-1.0,1.8),M_less_massive<=M_more_massive)
+    
+    # let's now mask which masses fall within the purple region
+    Champagne_Supernova = orange_more_massive_bool*orange_less_massive_bool
+
+
+
+    return(SN_Ia_HVS,two_star_SNIA,Champagne_Supernova)
