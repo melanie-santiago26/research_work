@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 def tgw(a,e,Mmoremass,Mlessmass,Data,key,parameter):
 
     """
-    Calcualte the coalescence time (inspiral time)
+    Calcualte the coalescence time (inspiral time) in Myrs
     a = semi major axis (expected in AU or Rsun)
     e = eccentricity
     Mmoremass = mass of the more massive compact object (expected in solar masses!)
