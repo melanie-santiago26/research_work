@@ -38,11 +38,11 @@ def triangle_plot_fnc(pathToH5, title):
     """
     Plotting the triangle plot
     pathTOH5 = path to the HDF5 file
+    title = the name of the plot that corresponds to the file name
     """
 
 # Set the appropriate path to the data file + read in the data
 
-    pathToH5 = pathToH5
     Data  = h5.File(pathToH5, "r")
 
 # To make the triangle plot we need the stellar types, masses, rates, and DCO mask
@@ -165,9 +165,162 @@ def triangle_plot_fnc(pathToH5, title):
     plt.ylabel("$M_{2}$[$M_{\odot}$]",fontsize=20)
     plt.title(title)
 
-## save figure:
-    # plt.savefig("./figures/triangle_plots/triangle_CEalpha1.png",bbox_inches='tight',pad_inches=0.1)
+# # save figure:
+#     plt.savefig("../figures/triangle_plots/triangle_CEalpha1.png",bbox_inches='tight',pad_inches=0.1)
 
 # Finally, let's close the HDF5 file
     Data.close()
 
+
+
+
+def redshift_rates_plotter(pathToH5, title):
+
+    """
+    Plotting the redhshift vs. rates plot for NSNS systems and COWD + WD systems
+    pathTOH5 = path to the HDF5 file
+    title = the name of the plot that corresponds to the file name
+    """
+
+# Set the appropriate path to the data file + read in the data
+
+    Data  = h5.File(pathToH5, "r")
+
+
+# let's gather the data we need for the redshift rates plots
+
+# we want to use information in the double compact object group
+    DCOs = Data['BSE_Double_Compact_Objects']
+# gathering the double compact objects that we have computed rates for
+    DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
+
+# first we want to investigate how many of each type of DCO there is
+    stellar_types_1 = DCOs['Stellar_Type(1)'][()][DCO_mask]
+    stellar_types_2 = DCOs['Stellar_Type(2)'][()][DCO_mask]
+
+# we need the masses and mixture weight
+    mass1 = DCOs['Mass(1)'][()][DCO_mask]
+    mass2 = DCOs['Mass(2)'][()][DCO_mask]
+
+# we also need the rates and redshift data
+    rates_DCO = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate'][()]
+    redshifts = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['redshifts'][()]
+
+
+# let's add everything to a dataframe so we can analyze things easier
+
+    data = {
+    "Stellar_Type(1)": stellar_types_1,
+    "Stellar_Type(2)": stellar_types_2,
+    "Mass(1)": mass1,
+    "Mass(2)": mass2
+    }
+
+    DCOs_masked = pd.DataFrame(data)
+
+
+# let's first count how many NSNS, NSWD, and WDWD systems there are
+
+    NSNS_systems_bool = np.logical_and(stellar_types_1==14, stellar_types_2==14)
+    print("There are {} NSNS systems." .format(sum(NSNS_systems_bool)))
+
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
+    carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
+    print("There are {} COWD systems." .format(sum(carbon_oxygen_bool)))
+
+
+    WDWD_bool = np.logical_and(np.isin(stellar_types_1,[10,11,12]),np.isin(stellar_types_2,[10,11,12]))
+    print("There are {} WDWD systems." .format(sum(WDWD_bool)))
+
+
+# let's now calculate the rates of these systems of interest
+    cowd_rate = np.sum(rates_DCO[carbon_oxygen_bool], axis=0)
+    NSNS_rate = np.sum(rates_DCO[NSNS_systems_bool], axis=0)
+
+
+# extracting the redshifts and rates from Briel et al
+# units in the appendix should be in h^-3 y^-1 Gpc^-3 so we must convert below to get yr^-1 Gpc^-3
+    h_little = 0.6766
+
+    redshifts_briel = [
+        0, 0.01, 0.03, (0.025+0.050)/2, 0.073, (0.05+0.15)/2, (0.075+0.125)/2, 0.11, 0.11, 0.13, 
+        0.15, (0.125+0.175)/2, 0.16, (0.175+0.225)/2, 0.2, 0.25, (0.15+0.35)/2, (0.225+0.275)/2, 
+        0.26, 0.3, (0.275+0.325)/2, 0.35, 0.35, 0.42, 0.44, 0.45, 0.45, (0.35+0.55)/2, 0.46, 0.47, 
+        0.47, 0.55, 0.55, 0.55, 0.62, 0.65, (0.55+0.75)/2, 0.65, 0.74, 0.75, 0.75, 0.75, 0.8, 0.83, 0.85, 
+        0.85, 0.94, 0.95, 0.95, 1.05, 1.1, 1.14, 1.21, 1.23, 1.25, 1.59, 1.61, 1.69, 1.75, 2.25
+    ]
+
+    rates_briel = [
+        0.77, 0.82, 0.82, 0.81, 0.71, 1.60, 0.76, 1.08, 0.72, 0.58, 0.93, 0.90, 0.41, 1.01, 0.58,
+        1.05, 1.14, 1.06, 0.82, 0.99, 1.27, 0.99, 1.05, 1.34, 0.76, 0.90, 1.05, 1.52, 1.40, 1.22, 
+        2.33, 0.93, 1.40, 1.52, 3.76, 1.40, 2.01, 1.43, 2.30, 1.49, 1.98, 1.69, 2.45, 3.79, 2.27, 
+        1.66, 1.31, 2.22, 2.24, 2.30, 2.16, 2.06, 3.85, 2.45, 1.87, 1.31, 1.22, 2.97, 2.10, 1.43
+    ]
+
+# converting the rates to the correct units
+    rates_briel = np.array(rates_briel)
+    converted_rates_briel = (rates_briel*(10**5))*(h_little**3)
+
+## uncertainties
+    lower_limits = [
+        -0.10, -0.26, -0.32, -0.24, -0.08, -0.85, -0.13, -0.29, -0.20, -0.18, -0.67, -0.10, -0.26, -0.09, 
+        -0.23, -0.76, -0.35, -0.08, -0.20, -0.44, -0.10, -0.55, -0.17, -0.93, -0.39, -0.44, -0.17, -0.38, 
+        -0.50, -0.17, -0.79, -0.41, -0.17, -0.26, -1.66, -0.15, -0.52, -0.50, -1.20, -0.55, -0.61, -0.17, 
+        -0.54, -0.79, -0.64, -0.15, -0.55, -0.73, -0.23, -0.82, -0.35, -0.53, -0.85, -0.82, -0.64, -0.64, 
+        -0.67, -1.08, -0.87, -1.11
+    ]
+
+    lower_limits = np.array(lower_limits)
+    converted_lower_limits = (lower_limits*(10**5)*(h_little**3))
+
+    upper_limits = [
+        0.10, 0.26, 0.32, 0.33, 0.08, 1.46, 0.15, 0.29, 0.08, 0.20, 0.67, 0.11, 0.26, 0.09, 0.23,
+        1.75, 0.38, 0.09, 0.20, 0.47, 0.11, 0.55, 0.17, 1.22, 0.67, 0.44, 0.17, 0.32, 0.50, 0.17, 
+        1.08, 0.41, 0.17, 0.29, 2.57, 0.15, 0.55, 0.50, 0.96, 0.79, 0.61, 0.17, 0.67, 0.96, 0.64, 
+        0.15, 0.64, 0.73, 0.23, 0.82, 0.35, 0.70, 1.05, 0.73, 0.90, 0.99, 1.14, 1.57, 1.31, 2.77
+    ]
+
+    upper_limits = np.array(upper_limits)
+    converted_upper_limits = (upper_limits*(10**5)*(h_little**3))
+
+# multiplied the lower errors by -1 so make them positive to avoid the plt.errorbar error 
+    y_error = [-1*(converted_lower_limits), converted_upper_limits]
+
+
+#Let's now actually plot!
+    plt.figure(figsize=(9,6))
+    plt.plot(redshifts[()],cowd_rate,linewidth=2,linestyle='--',color='mediumblue',label=r'$\mathrm{COWD + WD}$') # all COWD
+
+# NSNS Rate
+    plt.plot(redshifts[()],NSNS_rate,linewidth=2,color='grey',alpha=0.7,label='NSNS')
+
+## LVK BNS rate
+    plt.fill_between([0.1,0.3], 
+                    10,
+                    1700, 
+                    alpha=0.15, 
+                    color="grey")#,label=r'LVK BNS Rate $\mathrm{z=0.2}$')
+
+
+
+## seeing if this plot matches Max Briel's paper
+    plt.errorbar(redshifts_briel,converted_rates_briel,yerr=y_error, fmt='o', color = 'lightsteelblue', alpha=0.7)#,label='Briel et al. 2020')
+
+
+## axis
+    plt.xlim(0,8)
+    plt.ylim(10**0,5*10**5)
+    plt.yscale('log')
+    plt.ylabel(r"Event Rate, $\mathrm{dNdGpc^{-3}dyr^{-1}}$",fontsize=20)
+    plt.xlabel(r"Redshift",fontsize=25)
+    plt.xticks(fontsize=15)
+    plt.yticks(fontsize=15)
+    plt.title(title)
+    plt.legend()
+
+# ## save figure:
+    # plt.savefig("./figures/redshift_rates_plots/redshift_rates_CE1.pdf",bbox_inches='tight',pad_inches=0.1)
+
+
+# Closing the HDF5 File
+    Data.close()
