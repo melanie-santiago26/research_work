@@ -22,7 +22,8 @@ import matplotlib as mpl
 sys.path.append('/home/jovyan/home/research_work/useful_py_scripts/')
 
 # Now you can import the module
-import useful_fncs 
+import useful_fncs
+import utils_from_others
 
 # import for axes labels 
 plt.rcParams.update({
@@ -32,15 +33,11 @@ plt.rcParams.update({
 
 
 
-
-def triangle_plot_fnc(pathToH5, title):
-
+def systems_of_interest_counter(pathToH5):
     """
-    Plotting the triangle plot
-    pathTOH5 = path to the HDF5 file
-    title = the name of the plot that corresponds to the file name
+    Printing the number of systems that we choose to mask
+    pathToH5 = path to the HDF5 file
     """
-
 # Set the appropriate path to the data file + read in the data
 
     Data  = h5.File(pathToH5, "r")
@@ -83,6 +80,56 @@ def triangle_plot_fnc(pathToH5, title):
     HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
     print("There are {} COWD systems from the DCO masks." .format(sum(carbon_oxygen_bool)))
+
+
+
+
+
+def triangle_plot_fnc(pathToH5, title):
+
+    """
+    Plotting the triangle plot
+    pathTOH5 = path to the HDF5 file
+    title = the name of the plot that corresponds to the file name
+    """
+
+# Set the appropriate path to the data file + read in the data
+
+    Data  = h5.File(pathToH5, "r")
+
+# To make the triangle plot we need the stellar types, masses, rates, and DCO mask
+
+    DCOs = Data['BSE_Double_Compact_Objects'] # gathering the DCO group
+
+    DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
+
+    stellar_types_1 = DCOs['Stellar_Type(1)'][()][DCO_mask]
+    stellar_types_2 = DCOs['Stellar_Type(2)'][()][DCO_mask]
+
+    mass1 = DCOs['Mass(1)'][()][DCO_mask]
+    mass2 = DCOs['Mass(2)'][()][DCO_mask]
+
+    rates_z0_DCO = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate_z0'][()]
+
+# Let's add this data to a dataframe so we can mask and manipulate the data more efficently
+    data = {
+    "Stellar_Type(1)": stellar_types_1,
+    "Stellar_Type(2)": stellar_types_2,
+    "Mass(1)": mass1,
+    "Mass(2)": mass2
+    }
+
+    DCOs_masked = pd.DataFrame(data)
+
+# let's make masks for each type of system we care to analyze 
+
+# NSNS
+    NSNS_systems_bool = np.logical_and(stellar_types_1==14, stellar_types_2==14)
+# WDWD
+    WDWD_bool = np.logical_and(np.isin(stellar_types_1,[10,11,12]),np.isin(stellar_types_2,[10,11,12]))
+# COWD
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
+    carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
 
 # Making sure we are only masking the COWD 
     Mass1 = np.array(mass1[carbon_oxygen_bool]) 
@@ -198,7 +245,7 @@ def redshift_rates_plotter(pathToH5, title):
     stellar_types_1 = DCOs['Stellar_Type(1)'][()][DCO_mask]
     stellar_types_2 = DCOs['Stellar_Type(2)'][()][DCO_mask]
 
-# we need the masses and mixture weight
+# we need the masses
     mass1 = DCOs['Mass(1)'][()][DCO_mask]
     mass2 = DCOs['Mass(2)'][()][DCO_mask]
 
@@ -219,18 +266,17 @@ def redshift_rates_plotter(pathToH5, title):
     DCOs_masked = pd.DataFrame(data)
 
 
-# let's first count how many NSNS, NSWD, and WDWD systems there are
+# let's make bools for each type of system we care about 
 
+# NSNS
     NSNS_systems_bool = np.logical_and(stellar_types_1==14, stellar_types_2==14)
-    print("There are {} NSNS systems." .format(sum(NSNS_systems_bool)))
 
+# COWD + WD
     HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
-    print("There are {} COWD systems." .format(sum(carbon_oxygen_bool)))
 
-
+# WDWD
     WDWD_bool = np.logical_and(np.isin(stellar_types_1,[10,11,12]),np.isin(stellar_types_2,[10,11,12]))
-    print("There are {} WDWD systems." .format(sum(WDWD_bool)))
 
 
 # let's now calculate the rates of these systems of interest
