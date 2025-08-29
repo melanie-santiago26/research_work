@@ -223,6 +223,7 @@ def triangle_plot_fnc(pathToH5, title):
 
 
 
+
 def redshift_rates_plotter(pathToH5, title):
 
     """
@@ -376,6 +377,7 @@ def redshift_rates_plotter(pathToH5, title):
 
 
 
+
 def metallicity_plotter(pathToH5, title):
 
     """
@@ -457,7 +459,7 @@ def metallicity_plotter(pathToH5, title):
 
 #Plotting!
 # let's plot our normalized counts vs metallicities!
-    fig, ax = plt.subplots(2, figsize=(10, 8))
+    fig, ax = plt.subplots(2, figsize=(10, 7))
 
     counts_bins_mergers_cowd, bin_edges_mergers_cowd = np.histogram(np.log10(DCOs_masked['Metallicity@ZAMS(1)'][COWD_merged]), weights=DCOs_masked['mixture_weights'][COWD_merged], bins=bins_Z)
     # left edges + right edges/2 = center of each bin
@@ -473,7 +475,7 @@ def metallicity_plotter(pathToH5, title):
     ax[0].step(center_bins_mergers_cowd, (counts_bins_mergers_cowd/total_SFM_per_bin)/bin_width_mergers_cowd, where='mid', label='COWD+WD', color='mediumblue')
 
 
-    ax[0].set_xlabel(r"$\mathrm{Log_{10}}(\mathrm{Z)}$")
+    # ax[0].set_xlabel(r"$\mathrm{Log_{10}}(\mathrm{Z)}$")
     ax[0].set_ylabel(r"Merged Systems Per Solar Mass Formed")
     ax[0].legend()
 
@@ -497,4 +499,159 @@ def metallicity_plotter(pathToH5, title):
     ax[1].legend()
 
 # Closing the HDF5 File
+    Data.close()
+
+
+
+
+def time_dist_plotter(pathToH5, title):
+
+    """
+    Plotting the time distirbution plot for NSNS systems and COWD + WD systems
+    pathTOH5 = path to the HDF5 file
+    title = the name of the plot that corresponds to the file name
+    """
+
+# Read in the data
+    Data  = h5.File(pathToH5, "r")
+
+
+# we want to use information in the double compact object group
+    DCOs = Data['BSE_Double_Compact_Objects']
+    # gathering the double compact objects that we have computed rates for
+    DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
+
+    # first we want to investigate how many of each type of DCO there is
+    stellar_types_1 = DCOs['Stellar_Type(1)'][()][DCO_mask]
+    stellar_types_2 = DCOs['Stellar_Type(2)'][()][DCO_mask]
+
+
+    # we need the masses, mixture weight, and rate info
+    mass1 = DCOs['Mass(1)'][()][DCO_mask]
+    mass2 = DCOs['Mass(2)'][()][DCO_mask]
+    mixture_weights = DCOs['mixture_weight'][()][DCO_mask]
+
+    # times
+    lifetimes = DCOs['Time'][()][DCO_mask]
+    col_times = DCOs['Coalescence_Time'][()][DCO_mask]
+    delay_times = DCOs['Time'][()][DCO_mask] + DCOs['Coalescence_Time'][()][DCO_mask]
+
+
+# let's add everything to a dataframe so we can analyze things easier
+    data = {
+    "Stellar_Type(1)": stellar_types_1,
+    "Stellar_Type(2)": stellar_types_2,
+    "Mass(1)": mass1,
+    "Mass(2)": mass2,
+    "mixture_weight": mixture_weights,
+    "Time": lifetimes,
+    "Coalescence_Time": col_times,
+    "Delay_Time": delay_times
+    }
+
+    DCOs_masked = pd.DataFrame(data)
+
+
+# let's gather our masks for our data so we can plot our systems separately
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
+    carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
+
+    NSNS_bool = np.logical_and(DCOs_masked["Stellar_Type(1)"]==14, DCOs_masked['Stellar_Type(2)']==14)
+
+
+
+# Let's plot the time distributions!
+#Let's first start with the COWD+WD
+    ## hubble time
+    age_universe = 13.7e9
+
+    fig, ax = plt.subplots(2,figsize=(12,12))
+
+    ## all systems w/ COWD + WD life time
+    time_life_log_cowd_wd = np.log10((DCOs_masked['Time'][carbon_oxygen_bool]*(1e6)))
+    hist_cowd_wd_life, bin_edges_cowd_wd_life = np.histogram(time_life_log_cowd_wd, weights=DCOs_masked['mixture_weight'][carbon_oxygen_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    center_bins_cowd_wd_life = (bin_edges_cowd_wd_life[:-1] + bin_edges_cowd_wd_life[1:])/2
+    bin_width_cowd_wd_life = np.diff(bin_edges_cowd_wd_life)
+
+    ax[0].plot(center_bins_cowd_wd_life,(hist_cowd_wd_life/bin_width_cowd_wd_life)*1e-3,color='lightcoral',lw=2, label=r'$\mathrm{t_{life}}$')
+
+    ## all systems w/ COWD + WD coalescence time
+    time_col_log_cowd_wd = np.log10(((DCOs_masked['Coalescence_Time'][carbon_oxygen_bool]*(1e6))))
+    hist_cowd_wd_col, bin_edges_cowd_wd_col = np.histogram(time_col_log_cowd_wd, weights=DCOs_masked['mixture_weight'][carbon_oxygen_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    center_bins_cowd_wd_col = (bin_edges_cowd_wd_col[:-1] + bin_edges_cowd_wd_col[1:])/2
+    bin_width_cowd_wd_col = np.diff(bin_edges_cowd_wd_col)
+
+    ax[0].plot(center_bins_cowd_wd_col,(hist_cowd_wd_col/bin_width_cowd_wd_col)*1e-3,color='lightblue',lw=2, label=r'$\mathrm{t_{inspiral}}$')
+
+
+    ## all systems w/ COWD + WD delay time
+    time_delay_log_cowd_wd = np.log10((DCOs_masked['Delay_Time'][carbon_oxygen_bool]*(1e6)))
+    hist_cowd_wd, bin_edges_cowd_wd = np.histogram(time_delay_log_cowd_wd, weights=DCOs_masked['mixture_weight'][carbon_oxygen_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    center_bins_cowd_wd = (bin_edges_cowd_wd[:-1] + bin_edges_cowd_wd[1:])/2
+    bin_width_cowd_wd = np.diff(bin_edges_cowd_wd)
+
+    ax[0].plot(center_bins_cowd_wd,(hist_cowd_wd/bin_width_cowd_wd)*1e-3,color='mediumpurple',lw=2, label=r'$\mathrm{t_{delay}}$')
+
+
+
+
+    ax[0].text(0.03, 1.03, r'$\times 10^3$', fontsize = 15,  transform = ax[0].transAxes)
+
+    # ax[0].set_xlabel(r"$\log_{10}$(t/$\mathrm{Yr}$)",fontsize=15)
+    # plt.yscale('log')
+    # plt.xlim(0,15e9)
+    # plt.ylim(1e-1,1e3)
+    ax[0].set_ylabel(r"$\mathrm{dN}$/$\mathrm{d}\log_{10}(t$)",fontsize=15) 
+    ax[0].tick_params(axis='both', which='major', labelsize=15)
+
+    ax[0].axvline(np.log10(age_universe), color='r', linestyle='--', linewidth=2)#,label='Hubble Time')
+    ax[0].legend(fontsize=15)
+    ax[0].set_title(title+" COWD", fontsize = 20)
+
+
+
+    # Let's do this again for NSNS systems
+
+    ## all systems w/ NSNS life time
+    time_life_log_NSNS = np.log10((DCOs_masked['Time'][NSNS_bool]*(1e6)))
+    hist_cowd_NSNS_life, bin_edges_cowd_NSNS_life = np.histogram(time_life_log_NSNS, weights=DCOs_masked['mixture_weight'][NSNS_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    center_bins_cowd_NSNS_life = (bin_edges_cowd_NSNS_life[:-1] + bin_edges_cowd_NSNS_life[1:])/2
+    bin_width_cowd_NSNS_life = np.diff(bin_edges_cowd_NSNS_life)
+
+    ax[1].plot(center_bins_cowd_NSNS_life,(hist_cowd_NSNS_life/bin_width_cowd_NSNS_life)*1e-3,color='lightcoral',lw=2, label=r'$\mathrm{t_{life}}$')
+
+    ## all systems w/ NSNS coalescence time
+    time_col_log_NSNS = np.log10(((DCOs_masked['Coalescence_Time'][NSNS_bool]*(1e6))))
+    hist_cowd_NSNS_col, bin_edges_cowd_NSNS_col = np.histogram(time_col_log_NSNS, weights=DCOs_masked['mixture_weight'][NSNS_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    center_bins_cowd_NSNS_col = (bin_edges_cowd_NSNS_col[:-1] + bin_edges_cowd_NSNS_col[1:])/2
+    bin_width_cowd_NSNS_col = np.diff(bin_edges_cowd_NSNS_col)
+
+    ax[1].plot(center_bins_cowd_NSNS_col,(hist_cowd_NSNS_col/bin_width_cowd_NSNS_col)*1e-3,color='lightblue',lw=2, label=r'$\mathrm{t_{inspiral}}$')
+
+
+    ## all systems w/ NSNS delay time
+    time_delay_log_NSNS_wd = np.log10((DCOs_masked['Delay_Time'][NSNS_bool]*(1e6)))
+    hist_NSNS, bin_edges_NSNS = np.histogram(time_delay_log_NSNS_wd, weights=DCOs_masked['mixture_weight'][NSNS_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    center_bins_NSNS = (bin_edges_NSNS[:-1] + bin_edges_NSNS[1:])/2
+    bin_width_NSNS = np.diff(bin_edges_NSNS)
+
+    ax[1].plot(center_bins_NSNS,(hist_NSNS/bin_width_NSNS)*1e-3,color='mediumpurple',lw=2, label=r'$\mathrm{t_{delay}}$')
+
+    ax[1].text(0.03, 1.03, r'$\times 10^3$', fontsize = 15,  transform = ax[1].transAxes)
+
+    ax[1].set_xlabel(r"$\log_{10}$(t/$\mathrm{Yr}$)",fontsize=15)
+    # plt.yscale('log')
+    # plt.xlim(0,15e9)
+    # plt.ylim(1e-1,1e3)
+    ax[1].set_ylabel(r"$\mathrm{dN}$/$\mathrm{d}\log_{10}(t$)",fontsize=15) 
+    ax[1].tick_params(axis='both', which='major', labelsize=15)
+
+    ax[1].axvline(np.log10(age_universe), color='r', linestyle='--', linewidth=2)#,label='Hubble Time')
+    ax[1].legend(fontsize=15)
+    ax[1].set_title(title+" NSNS", fontsize = 20)
+
+    ## save figure:
+    # plt.savefig("./figures/delaytime_distributions_COWD.png",bbox_inches='tight',pad_inches=0.1)
+
+# Close the HDF5 File
     Data.close()
