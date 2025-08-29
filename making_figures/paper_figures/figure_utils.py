@@ -81,6 +81,8 @@ def systems_of_interest_counter(pathToH5):
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
     print("There are {} COWD systems from the DCO masks." .format(sum(carbon_oxygen_bool)))
 
+# Let's close the HDF5 File
+    Data.close()
 
 
 
@@ -367,6 +369,132 @@ def redshift_rates_plotter(pathToH5, title):
 # ## save figure:
     # plt.savefig("./figures/redshift_rates_plots/redshift_rates_CE1.pdf",bbox_inches='tight',pad_inches=0.1)
 
+
+# Closing the HDF5 File
+    Data.close()
+
+
+
+
+def metallicity_plotter(pathToH5, title):
+
+    """
+    Plotting the distribution of metallicites in log10 space for NSNS systems and COWD + WD systems
+    pathTOH5 = path to the HDF5 file
+    title = the name of the plot that corresponds to the file name
+    """
+
+# Read in the data
+    Data  = h5.File(pathToH5, "r")
+
+
+# we need the metallicities, stellar types, masses, mixture weights, merges hubble time
+    DCOs = Data['BSE_Double_Compact_Objects']
+# gathering the double compact objects that we have computed rates for
+    DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
+
+# first we want to investigate how many of each type of DCO there is
+    stellar_types_1 = DCOs['Stellar_Type(1)'][()][DCO_mask]
+    stellar_types_2 = DCOs['Stellar_Type(2)'][()][DCO_mask]
+
+# masses
+    mass1 = DCOs['Mass(1)'][()][DCO_mask]
+    mass2 = DCOs['Mass(2)'][()][DCO_mask]
+
+# mixture weights
+    mixture_weights = DCOs['mixture_weight'][()][DCO_mask]
+
+# merges hubble time
+    merges_compas = DCOs['Merges_Hubble_Time'][()][DCO_mask]
+
+# metallicities
+    metallicities = DCOs['Metallicity@ZAMS(1)'][()][DCO_mask]
+
+
+# Let's add everything to a dataframe so we can analyze things easier
+
+    data = {
+    "Stellar_Type(1)": stellar_types_1,
+    "Stellar_Type(2)": stellar_types_2,
+    "Mass(1)": mass1,
+    "Mass(2)": mass2,
+    "mixture_weights": mixture_weights,
+    "Merges_Hubble_time": merges_compas,
+    "Metallicity@ZAMS(1)": metallicities
+    }
+
+    DCOs_masked = pd.DataFrame(data)
+
+
+# let's make evenly spaced metallicity bins in log 
+    metallicities = np.array(DCOs_masked['Metallicity@ZAMS(1)'])
+    metallicities_log = np.log10(metallicities)
+    bins_Z = np.linspace(-4, np.log10(0.03), 20) # making sure we are considereing the bounds of COMPAS
+
+
+# Defining what constants to use for the star forming mass per binary
+    m1min = min(Data['BSE_System_Parameters']['Mass@ZAMS(1)'][()])
+    m1max = max(Data['BSE_System_Parameters']['Mass@ZAMS(1)'][()])
+    m2min = Data['Run_Details']["minimum-secondary-mass"][0]
+
+# calling the function for star forming mass per binary 
+    analytical_star_forming_mass_per_binary = utils_from_others.analytical_star_forming_mass_per_binary_using_kroupa_imf(m1min, m1max, m2min)
+
+
+
+# let's use the "Merges_Hubble_Time" flag to flag when binaries merge and produce graviational waves
+    merges_comaps_bool = DCOs_masked['Merges_Hubble_time']==1
+
+# let's create masks for our systems of intersts so we can plot the metallicity dist for each
+# COWD+WD systems
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
+    carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
+    COWD_merged = carbon_oxygen_bool*merges_comaps_bool
+# NSNS systems
+    NSNS_bool = np.logical_and(DCOs_masked["Stellar_Type(1)"]==14, DCOs_masked['Stellar_Type(2)']==14)
+    NSNS_merged = NSNS_bool*merges_comaps_bool
+
+
+#Plotting!
+# let's plot our normalized counts vs metallicities!
+    fig, ax = plt.subplots(2, figsize=(10, 8))
+
+    counts_bins_mergers_cowd, bin_edges_mergers_cowd = np.histogram(np.log10(DCOs_masked['Metallicity@ZAMS(1)'][COWD_merged]), weights=DCOs_masked['mixture_weights'][COWD_merged], bins=bins_Z)
+    # left edges + right edges/2 = center of each bin
+    center_bins_mergers_cowd = (bin_edges_mergers_cowd[:-1] + bin_edges_mergers_cowd[1:])/2
+    # we need to consider the bin width so that if we change the normalization constant, the shape stays the same
+
+    bin_width_mergers_cowd = np.diff(bin_edges_mergers_cowd)
+
+    # we now need to see how we can make the counts we get mroe realistic and rep the universe not just what we simulated
+    numer_of_binaries_simulated_per_bin = 1e5 #this works because we have systems with metallicites that are uniform in log 
+    total_SFM_per_bin = analytical_star_forming_mass_per_binary*numer_of_binaries_simulated_per_bin # total SFM that COMPAS simulation represents in each bin - makes hist more realistic 
+
+    ax[0].step(center_bins_mergers_cowd, (counts_bins_mergers_cowd/total_SFM_per_bin)/bin_width_mergers_cowd, where='mid', label='COWD+WD', color='mediumblue')
+
+
+    ax[0].set_xlabel(r"$\mathrm{Log_{10}}(\mathrm{Z)}$")
+    ax[0].set_ylabel(r"Merged Systems Per Solar Mass Formed")
+    ax[0].legend()
+
+
+
+# let's do this again but for NSNS systems
+    counts_bins_mergers_NSNS, bin_edges_mergers_NSNS = np.histogram(np.log10(DCOs_masked['Metallicity@ZAMS(1)'][NSNS_merged]), weights=DCOs_masked['mixture_weights'][NSNS_merged], bins=bins_Z)
+    # left edges + right edges/2 = center of each bin
+    center_bins_mergers_NSNS = (bin_edges_mergers_NSNS[:-1] + bin_edges_mergers_NSNS[1:])/2
+    # we need to consider the bin width so that if we change the normalization constant, the shape stays the same
+
+    bin_width_mergers_NSNS = np.diff(bin_edges_mergers_NSNS)
+
+    # we now need to see how we can make the counts we get mroe realistic and rep the universe not just what we simulated
+    numer_of_binaries_simulated_per_bin = 1e5 #this works because we have systems with metallicites that are uniform in log 
+    total_SFM_per_bin = analytical_star_forming_mass_per_binary*numer_of_binaries_simulated_per_bin # total SFM that COMPAS simulation represents in each bin - makes hist more realistic 
+
+    ax[1].step(center_bins_mergers_NSNS, (counts_bins_mergers_NSNS/total_SFM_per_bin)/bin_width_mergers_NSNS, where='mid', label="NSNS", color='grey')
+    ax[1].set_xlabel(r"$\mathrm{Log_{10}}(\mathrm{Z)}$")
+    ax[1].set_ylabel(r"Merged Systems Per Solar Mass Formed")
+    ax[1].legend()
 
 # Closing the HDF5 File
     Data.close()
