@@ -42,7 +42,7 @@ def systems_of_interest_counter(pathToH5):
 
     Data  = h5.File(pathToH5, "r")
 
-# To make the triangle plot we need the stellar types, masses, rates, and DCO mask
+# To count our systems of interest we need the stellar types, masses, rates, and DCO mask
 
     DCOs = Data['BSE_Double_Compact_Objects'] # gathering the DCO group
 
@@ -87,7 +87,7 @@ def systems_of_interest_counter(pathToH5):
 
 
 
-def triangle_plot_fnc(pathToH5, title):
+def triangle_plot_fnc(pathToH5, title, plot_output, filename):
 
     """
     Plotting the triangle plot
@@ -212,10 +212,10 @@ def triangle_plot_fnc(pathToH5, title):
     plt.yticks(fontsize=15)
     plt.xlabel("$M_{1}$[$M_{\odot}$]",fontsize=20)
     plt.ylabel("$M_{2}$[$M_{\odot}$]",fontsize=20)
-    plt.title(title)
+    plt.title(title, pad=20)
 
-# # save figure:
-#     plt.savefig("../figures/triangle_plots/triangle_CEalpha1.png",bbox_inches='tight',pad_inches=0.1)
+# save figure:
+    plt.savefig(plot_output + filename +".png",bbox_inches='tight',pad_inches=0.1)
 
 # Finally, let's close the HDF5 file
     Data.close()
@@ -224,7 +224,7 @@ def triangle_plot_fnc(pathToH5, title):
 
 
 
-def redshift_rates_plotter(pathToH5, title):
+def redshift_rates_plotter(pathToH5, title, plot_output, filename):
 
     """
     Plotting the redhshift vs. rates plot for NSNS systems and COWD + WD systems
@@ -364,11 +364,11 @@ def redshift_rates_plotter(pathToH5, title):
     plt.xlabel(r"Redshift",fontsize=25)
     plt.xticks(fontsize=15)
     plt.yticks(fontsize=15)
-    plt.title(title)
+    plt.title(title, pad=20)
     plt.legend()
 
-# ## save figure:
-    # plt.savefig("./figures/redshift_rates_plots/redshift_rates_CE1.pdf",bbox_inches='tight',pad_inches=0.1)
+# save figure:
+    plt.savefig(plot_output + filename +".png",bbox_inches='tight',pad_inches=0.1)
 
 
 # Closing the HDF5 File
@@ -378,7 +378,7 @@ def redshift_rates_plotter(pathToH5, title):
 
 
 
-def metallicity_plotter(pathToH5, title):
+def metallicity_plotter(pathToH5, title, plot_output, filename):
 
     """
     Plotting the distribution of metallicites in log10 space for NSNS systems and COWD + WD systems
@@ -478,6 +478,7 @@ def metallicity_plotter(pathToH5, title):
     # ax[0].set_xlabel(r"$\mathrm{Log_{10}}(\mathrm{Z)}$")
     ax[0].set_ylabel(r"Merged Systems Per Solar Mass Formed")
     ax[0].legend()
+    ax[0].set_title(title, pad=20)
 
 
 
@@ -498,13 +499,17 @@ def metallicity_plotter(pathToH5, title):
     ax[1].set_ylabel(r"Merged Systems Per Solar Mass Formed")
     ax[1].legend()
 
+
+# save figure:
+    plt.savefig(plot_output + filename +".png",bbox_inches='tight',pad_inches=0.1)
+
 # Closing the HDF5 File
     Data.close()
 
 
 
 
-def time_dist_plotter(pathToH5, title):
+def time_dist_plotter(pathToH5, title, plot_output, filename):
 
     """
     Plotting the time distirbution plot for NSNS systems and COWD + WD systems
@@ -606,7 +611,7 @@ def time_dist_plotter(pathToH5, title):
 
     ax[0].axvline(np.log10(age_universe), color='r', linestyle='--', linewidth=2)#,label='Hubble Time')
     ax[0].legend(fontsize=15)
-    ax[0].set_title(title+" COWD", fontsize = 20)
+    ax[0].set_title(title+" COWD", fontsize = 20, pad=20)
 
 
 
@@ -648,10 +653,10 @@ def time_dist_plotter(pathToH5, title):
 
     ax[1].axvline(np.log10(age_universe), color='r', linestyle='--', linewidth=2)#,label='Hubble Time')
     ax[1].legend(fontsize=15)
-    ax[1].set_title(title+" NSNS", fontsize = 20)
+    ax[1].set_title(title+" NSNS", fontsize = 20, pad=20)
 
-    ## save figure:
-    # plt.savefig("./figures/delaytime_distributions_COWD.png",bbox_inches='tight',pad_inches=0.1)
+# save figure:
+    plt.savefig(plot_output + filename +".png",bbox_inches='tight',pad_inches=0.1)
 
 # Close the HDF5 File
     Data.close()
