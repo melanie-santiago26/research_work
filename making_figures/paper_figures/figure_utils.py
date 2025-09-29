@@ -48,13 +48,17 @@ def systems_of_interest_counter(pathToH5):
 
     DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
 
-    stellar_types_1 = DCOs['Stellar_Type(1)'][()][DCO_mask]
-    stellar_types_2 = DCOs['Stellar_Type(2)'][()][DCO_mask]
+    stellar_types_1_all = DCOs['Stellar_Type(1)'][()]
+    stellar_types_1 = stellar_types_1_all[DCO_mask]
 
-    mass1 = DCOs['Mass(1)'][()][DCO_mask]
-    mass2 = DCOs['Mass(2)'][()][DCO_mask]
+    stellar_types_2_all = DCOs['Stellar_Type(2)'][()]
+    stellar_types_2 = stellar_types_2_all[DCO_mask]
 
-    rates_z0_DCO = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate_z0'][()]
+    mass1_all = DCOs['Mass(1)'][()]
+    mass1 = mass1_all[DCO_mask]
+
+    mass2_all = DCOs['Mass(2)'][()]
+    mass2 = mass2_all[DCO_mask]
 
 # Let's add this data to a dataframe so we can mask and manipulate the data more efficently
     data = {
