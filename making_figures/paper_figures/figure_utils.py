@@ -17,6 +17,7 @@ import os
 from scipy import stats
 import seaborn as sns
 import matplotlib as mpl
+import time 
 
 # Add the subdir to sys.path
 sys.path.append('/home/jovyan/home/research_work/useful_py_scripts/')
@@ -48,6 +49,7 @@ def systems_of_interest_counter(pathToH5):
 
     DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
 
+# HDF5 files are most efficent if you apply the mask after reading in the key of interest
     stellar_types_1_all = DCOs['Stellar_Type(1)'][()]
     stellar_types_1 = stellar_types_1_all[DCO_mask]
 
@@ -60,20 +62,11 @@ def systems_of_interest_counter(pathToH5):
     mass2_all = DCOs['Mass(2)'][()]
     mass2 = mass2_all[DCO_mask]
 
-# Let's add this data to a dataframe so we can mask and manipulate the data more efficently
-    data = {
-    "Stellar_Type(1)": stellar_types_1,
-    "Stellar_Type(2)": stellar_types_2,
-    "Mass(1)": mass1,
-    "Mass(2)": mass2
-    }
-
-    DCOs_masked = pd.DataFrame(data)
 
 # let's analyze how many systems of interest there are in our output
 
 # NSNS
-    NSNS_systems_bool = np.logical_and(stellar_types_1==14, stellar_types_2==14)
+    NSNS_systems_bool = np.logical_and(stellar_types_1==13, stellar_types_2==13)
     print("There are {} NSNS systems from the DCO mask." .format(sum(NSNS_systems_bool)))
 
 # WDWD
@@ -81,7 +74,7 @@ def systems_of_interest_counter(pathToH5):
     print("There are {} WDWD systems from the DCO masks." .format(sum(WDWD_bool)))
 
 # COWD
-    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(stellar_types_1, stellar_types_2)
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
     print("There are {} COWD systems from the DCO masks." .format(sum(carbon_oxygen_bool)))
 
@@ -109,32 +102,27 @@ def triangle_plot_fnc(pathToH5, title, plot_output, filename):
 
     DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
 
-    stellar_types_1 = DCOs['Stellar_Type(1)'][()][DCO_mask]
-    stellar_types_2 = DCOs['Stellar_Type(2)'][()][DCO_mask]
+# HDF5 files are most efficent if you apply the mask after reading in the key of interest
 
-    mass1 = DCOs['Mass(1)'][()][DCO_mask]
-    mass2 = DCOs['Mass(2)'][()][DCO_mask]
+    stellar_types_1_all = DCOs['Stellar_Type(1)'][()]
+    stellar_types_1 = stellar_types_1_all[DCO_mask]
+
+    stellar_types_2_all = DCOs['Stellar_Type(2)'][()]
+    stellar_types_2 = stellar_types_2_all[DCO_mask]
+
+    mass1_all = DCOs['Mass(1)'][()]
+    mass1 = mass1_all[DCO_mask]
+
+    mass2_all = DCOs['Mass(2)'][()]
+    mass2 = mass2_all[DCO_mask]
 
     rates_z0_DCO = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate_z0'][()]
 
-# Let's add this data to a dataframe so we can mask and manipulate the data more efficently
-    data = {
-    "Stellar_Type(1)": stellar_types_1,
-    "Stellar_Type(2)": stellar_types_2,
-    "Mass(1)": mass1,
-    "Mass(2)": mass2
-    }
-
-    DCOs_masked = pd.DataFrame(data)
 
 # let's make masks for each type of system we care to analyze 
 
-# NSNS
-    NSNS_systems_bool = np.logical_and(stellar_types_1==14, stellar_types_2==14)
-# WDWD
-    WDWD_bool = np.logical_and(np.isin(stellar_types_1,[10,11,12]),np.isin(stellar_types_2,[10,11,12]))
 # COWD
-    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(stellar_types_1, stellar_types_2)
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
 
 # Making sure we are only masking the COWD 
@@ -160,7 +148,7 @@ def triangle_plot_fnc(pathToH5, title, plot_output, filename):
                     cmap=sns.color_palette("Spectral_r",as_cmap=True),norm='log',vmin=vmin,vmax=vmax) # C is how much each point is weighted
                 # use symlog when you also want to cover negative values    
 # right now we are not dividing by the bin size, so when we chage the bins - it changes the shape of our dist 
-    zvalue_array = hb.get_array() # the merger rates of the histogram
+    # zvalue_array = hb.get_array() # the merger rates of the histogram
     # print(min(zvalue_array),max(zvalue_array)) # helps us detemine what vim and vmax should be and what the bin size should be 
 
 # colorbar
@@ -236,54 +224,55 @@ def redshift_rates_plotter(pathToH5, title, plot_output, filename):
     title = the name of the plot that corresponds to the file name
     """
 
+    print("in function", filename)
+
+# tracking the runtime
+    start = time.time()
+
 # Set the appropriate path to the data file + read in the data
 
     Data  = h5.File(pathToH5, "r")
+
+    print("Opening the file took:", start - time.time())
 
 
 # let's gather the data we need for the redshift rates plots
 
 # we want to use information in the double compact object group
     DCOs = Data['BSE_Double_Compact_Objects']
+
+    print("Getting DCOS took:", start - time.time())
+
 # gathering the double compact objects that we have computed rates for
     DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
 
+    # print("Opening the file:", start - time.time())
 # first we want to investigate how many of each type of DCO there is
-    stellar_types_1 = DCOs['Stellar_Type(1)'][()][DCO_mask]
-    stellar_types_2 = DCOs['Stellar_Type(2)'][()][DCO_mask]
+    stellar_types_all_1 = DCOs['Stellar_Type(1)'][()]
+    stellar_types_1 = stellar_types_all_1[DCO_mask]
 
-# we need the masses
-    mass1 = DCOs['Mass(1)'][()][DCO_mask]
-    mass2 = DCOs['Mass(2)'][()][DCO_mask]
+    stellar_types_all_2 = DCOs['Stellar_Type(2)'][()]
+    stellar_types_2 = stellar_types_all_2[DCO_mask]
 
 # we also need the rates and redshift data
     rates_DCO = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate'][()]
     redshifts = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['redshifts'][()]
 
-
-# let's add everything to a dataframe so we can analyze things easier
-
-    data = {
-    "Stellar_Type(1)": stellar_types_1,
-    "Stellar_Type(2)": stellar_types_2,
-    "Mass(1)": mass1,
-    "Mass(2)": mass2
-    }
-
-    DCOs_masked = pd.DataFrame(data)
+    time2_post_read = time.time()
+    print("The time it takes to read in the data:", time2_post_read - start)
 
 
 # let's make bools for each type of system we care about 
 
 # NSNS
-    NSNS_systems_bool = np.logical_and(stellar_types_1==14, stellar_types_2==14)
+    NSNS_systems_bool = np.logical_and(stellar_types_1==13, stellar_types_2==13)
 
 # COWD + WD
-    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(stellar_types_1, stellar_types_2)
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
 
-# WDWD
-    WDWD_bool = np.logical_and(np.isin(stellar_types_1,[10,11,12]),np.isin(stellar_types_2,[10,11,12]))
+# # WDWD
+#     WDWD_bool = np.logical_and(np.isin(stellar_types_1,[10,11,12]),np.isin(stellar_types_2,[10,11,12]))
 
 
 # let's now calculate the rates of these systems of interest
@@ -342,15 +331,15 @@ def redshift_rates_plotter(pathToH5, title, plot_output, filename):
 
 #Let's now actually plot!
     plt.figure(figsize=(9,6))
-    plt.plot(redshifts[()],cowd_rate,linewidth=2,linestyle='--',color='mediumblue',label=r'$\mathrm{COWD + WD}$') # all COWD
+    plt.plot(redshifts,cowd_rate,linewidth=2,linestyle='--',color='mediumblue',label=r'$\mathrm{COWD + WD}$') # all COWD
 
 # NSNS Rate
-    plt.plot(redshifts[()],NSNS_rate,linewidth=2,color='grey',alpha=0.7,label='NSNS')
+    plt.plot(redshifts,NSNS_rate,linewidth=2,color='grey',alpha=0.7,label='NSNS')
 
-## LVK BNS rate
-    plt.fill_between([0.1,0.3], 
-                    10,
-                    1700, 
+## LVK BNS rate (update at z=0 - https://arxiv.org/pdf/2508.18083)
+    plt.fill_between([0,0], 
+                    7.6,
+                    250, 
                     alpha=0.15, 
                     color="grey")#,label=r'LVK BNS Rate $\mathrm{z=0.2}$')
 
@@ -408,33 +397,20 @@ def metallicity_plotter(pathToH5, title, plot_output, filename):
     mass2 = DCOs['Mass(2)'][()][DCO_mask]
 
 # mixture weights
-    mixture_weights = DCOs['mixture_weight'][()][DCO_mask]
+    mixture_weights_all = DCOs['mixture_weight'][()]
+    mixture_weights = mixture_weights_all[DCO_mask]
 
 # merges hubble time
-    merges_compas = DCOs['Merges_Hubble_Time'][()][DCO_mask]
+    merges_compas_all = DCOs['Merges_Hubble_Time'][()]
+    merges_compas = merges_compas_all[DCO_mask]
 
 # metallicities
-    metallicities = DCOs['Metallicity@ZAMS(1)'][()][DCO_mask]
+    metallicities_all = DCOs['Metallicity@ZAMS(1)'][()]
+    metallicities = metallicities_all[DCO_mask]
 
-
-# Let's add everything to a dataframe so we can analyze things easier
-
-    data = {
-    "Stellar_Type(1)": stellar_types_1,
-    "Stellar_Type(2)": stellar_types_2,
-    "Mass(1)": mass1,
-    "Mass(2)": mass2,
-    "mixture_weights": mixture_weights,
-    "Merges_Hubble_time": merges_compas,
-    "Metallicity@ZAMS(1)": metallicities
-    }
-
-    DCOs_masked = pd.DataFrame(data)
 
 
 # let's make evenly spaced metallicity bins in log 
-    metallicities = np.array(DCOs_masked['Metallicity@ZAMS(1)'])
-    metallicities_log = np.log10(metallicities)
     bins_Z = np.linspace(-4, np.log10(0.03), 20) # making sure we are considereing the bounds of COMPAS
 
 
@@ -443,29 +419,28 @@ def metallicity_plotter(pathToH5, title, plot_output, filename):
     m1max = max(Data['BSE_System_Parameters']['Mass@ZAMS(1)'][()])
     m2min = Data['Run_Details']["minimum-secondary-mass"][0]
 
-# calling the function for star forming mass per binary 
-    analytical_star_forming_mass_per_binary = utils_from_others.analytical_star_forming_mass_per_binary_using_kroupa_imf(m1min, m1max, m2min)
-
+# calling the function for star forming mass per binary (use old one for now)*****
+    # analytical_star_forming_mass_per_binary = utils_from_others.analytical_star_forming_mass_per_binary_using_kroupa_imf(m1min, m1max, m2min)
 
 
 # let's use the "Merges_Hubble_Time" flag to flag when binaries merge and produce graviational waves
-    merges_comaps_bool = DCOs_masked['Merges_Hubble_time']==1
+    merges_comaps_bool = merges_compas==1
 
 # let's create masks for our systems of intersts so we can plot the metallicity dist for each
 # COWD+WD systems
-    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(stellar_types_1, stellar_types_2)
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
     COWD_merged = carbon_oxygen_bool*merges_comaps_bool
 # NSNS systems
-    NSNS_bool = np.logical_and(DCOs_masked["Stellar_Type(1)"]==14, DCOs_masked['Stellar_Type(2)']==14)
-    NSNS_merged = NSNS_bool*merges_comaps_bool
+    NSNS_systems_bool = np.logical_and(stellar_types_1==13, stellar_types_2==13)
+    NSNS_merged = NSNS_systems_bool*merges_comaps_bool
 
 
 #Plotting!
 # let's plot our normalized counts vs metallicities!
     fig, ax = plt.subplots(2, figsize=(10, 7))
 
-    counts_bins_mergers_cowd, bin_edges_mergers_cowd = np.histogram(np.log10(DCOs_masked['Metallicity@ZAMS(1)'][COWD_merged]), weights=DCOs_masked['mixture_weights'][COWD_merged], bins=bins_Z)
+    counts_bins_mergers_cowd, bin_edges_mergers_cowd = np.histogram(np.log10(metallicities[COWD_merged]), weights = mixture_weights[COWD_merged], bins=bins_Z)
     # left edges + right edges/2 = center of each bin
     center_bins_mergers_cowd = (bin_edges_mergers_cowd[:-1] + bin_edges_mergers_cowd[1:])/2
     # we need to consider the bin width so that if we change the normalization constant, the shape stays the same
@@ -473,7 +448,7 @@ def metallicity_plotter(pathToH5, title, plot_output, filename):
     bin_width_mergers_cowd = np.diff(bin_edges_mergers_cowd)
 
     # we now need to see how we can make the counts we get mroe realistic and rep the universe not just what we simulated
-    numer_of_binaries_simulated_per_bin = 1e5 #this works because we have systems with metallicites that are uniform in log 
+    numer_of_binaries_simulated_per_bin = 5*(1e4) #this works because we have systems with metallicites that are uniform in log ***FIX THIS to make it more variable for different bin sizes (see meeting ntoes)
     total_SFM_per_bin = analytical_star_forming_mass_per_binary*numer_of_binaries_simulated_per_bin # total SFM that COMPAS simulation represents in each bin - makes hist more realistic 
 
     ax[0].step(center_bins_mergers_cowd, (counts_bins_mergers_cowd/total_SFM_per_bin)/bin_width_mergers_cowd, where='mid', label='COWD+WD', color='mediumblue')
@@ -487,7 +462,7 @@ def metallicity_plotter(pathToH5, title, plot_output, filename):
 
 
 # let's do this again but for NSNS systems
-    counts_bins_mergers_NSNS, bin_edges_mergers_NSNS = np.histogram(np.log10(DCOs_masked['Metallicity@ZAMS(1)'][NSNS_merged]), weights=DCOs_masked['mixture_weights'][NSNS_merged], bins=bins_Z)
+    counts_bins_mergers_NSNS, bin_edges_mergers_NSNS = np.histogram(np.log10(metallicities[NSNS_merged]), weights = mixture_weights[NSNS_merged], bins=bins_Z)
     # left edges + right edges/2 = center of each bin
     center_bins_mergers_NSNS = (bin_edges_mergers_NSNS[:-1] + bin_edges_mergers_NSNS[1:])/2
     # we need to consider the bin width so that if we change the normalization constant, the shape stays the same
@@ -530,42 +505,36 @@ def time_dist_plotter(pathToH5, title, plot_output, filename):
     # gathering the double compact objects that we have computed rates for
     DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
 
-    # first we want to investigate how many of each type of DCO there is
-    stellar_types_1 = DCOs['Stellar_Type(1)'][()][DCO_mask]
-    stellar_types_2 = DCOs['Stellar_Type(2)'][()][DCO_mask]
+    stellar_types_1_all = DCOs['Stellar_Type(1)'][()]
+    stellar_types_1 = stellar_types_1_all[DCO_mask]
 
+    stellar_types_2_all = DCOs['Stellar_Type(2)'][()]
+    stellar_types_2 = stellar_types_2_all[DCO_mask]
 
-    # we need the masses, mixture weight, and rate info
-    mass1 = DCOs['Mass(1)'][()][DCO_mask]
-    mass2 = DCOs['Mass(2)'][()][DCO_mask]
-    mixture_weights = DCOs['mixture_weight'][()][DCO_mask]
+    mass1_all = DCOs['Mass(1)'][()]
+    mass1 = mass1_all[DCO_mask]
+
+    mass2_all = DCOs['Mass(2)'][()]
+    mass2 = mass2_all[DCO_mask]
+
+    mixture_weights_all = DCOs['mixture_weight'][()]
+    mixture_weights = mixture_weights_all[DCO_mask]
 
     # times
-    lifetimes = DCOs['Time'][()][DCO_mask]
-    col_times = DCOs['Coalescence_Time'][()][DCO_mask]
-    delay_times = DCOs['Time'][()][DCO_mask] + DCOs['Coalescence_Time'][()][DCO_mask]
+    lifetimes_all = DCOs['Time'][()]
+    lifetimes = lifetimes_all[DCO_mask]
 
+    col_times_all = DCOs['Coalescence_Time'][()]
+    col_times = col_times_all[DCO_mask]
 
-# let's add everything to a dataframe so we can analyze things easier
-    data = {
-    "Stellar_Type(1)": stellar_types_1,
-    "Stellar_Type(2)": stellar_types_2,
-    "Mass(1)": mass1,
-    "Mass(2)": mass2,
-    "mixture_weight": mixture_weights,
-    "Time": lifetimes,
-    "Coalescence_Time": col_times,
-    "Delay_Time": delay_times
-    }
-
-    DCOs_masked = pd.DataFrame(data)
+    delay_times = lifetimes + col_times
 
 
 # let's gather our masks for our data so we can plot our systems separately
-    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(DCOs_masked)
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = useful_fncs.WD_BINARY_BOOLS(stellar_types_1, stellar_types_2)
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
 
-    NSNS_bool = np.logical_and(DCOs_masked["Stellar_Type(1)"]==14, DCOs_masked['Stellar_Type(2)']==14)
+    NSNS_bool = np.logical_and(stellar_types_1==13, stellar_types_2==13)
 
 
 
@@ -577,16 +546,16 @@ def time_dist_plotter(pathToH5, title, plot_output, filename):
     fig, ax = plt.subplots(2,figsize=(12,12))
 
     ## all systems w/ COWD + WD life time
-    time_life_log_cowd_wd = np.log10((DCOs_masked['Time'][carbon_oxygen_bool]*(1e6)))
-    hist_cowd_wd_life, bin_edges_cowd_wd_life = np.histogram(time_life_log_cowd_wd, weights=DCOs_masked['mixture_weight'][carbon_oxygen_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    time_life_log_cowd_wd = np.log10((lifetimes[carbon_oxygen_bool]*(1e6)))
+    hist_cowd_wd_life, bin_edges_cowd_wd_life = np.histogram(time_life_log_cowd_wd, weights = mixture_weights[carbon_oxygen_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
     center_bins_cowd_wd_life = (bin_edges_cowd_wd_life[:-1] + bin_edges_cowd_wd_life[1:])/2
     bin_width_cowd_wd_life = np.diff(bin_edges_cowd_wd_life)
 
     ax[0].plot(center_bins_cowd_wd_life,(hist_cowd_wd_life/bin_width_cowd_wd_life)*1e-3,color='lightcoral',lw=2, label=r'$\mathrm{t_{life}}$')
 
     ## all systems w/ COWD + WD coalescence time
-    time_col_log_cowd_wd = np.log10(((DCOs_masked['Coalescence_Time'][carbon_oxygen_bool]*(1e6))))
-    hist_cowd_wd_col, bin_edges_cowd_wd_col = np.histogram(time_col_log_cowd_wd, weights=DCOs_masked['mixture_weight'][carbon_oxygen_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    time_col_log_cowd_wd = np.log10(((col_times[carbon_oxygen_bool]*(1e6))))
+    hist_cowd_wd_col, bin_edges_cowd_wd_col = np.histogram(time_col_log_cowd_wd, weights=mixture_weights[carbon_oxygen_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
     center_bins_cowd_wd_col = (bin_edges_cowd_wd_col[:-1] + bin_edges_cowd_wd_col[1:])/2
     bin_width_cowd_wd_col = np.diff(bin_edges_cowd_wd_col)
 
@@ -594,8 +563,8 @@ def time_dist_plotter(pathToH5, title, plot_output, filename):
 
 
     ## all systems w/ COWD + WD delay time
-    time_delay_log_cowd_wd = np.log10((DCOs_masked['Delay_Time'][carbon_oxygen_bool]*(1e6)))
-    hist_cowd_wd, bin_edges_cowd_wd = np.histogram(time_delay_log_cowd_wd, weights=DCOs_masked['mixture_weight'][carbon_oxygen_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    time_delay_log_cowd_wd = np.log10((delay_times[carbon_oxygen_bool]*(1e6)))
+    hist_cowd_wd, bin_edges_cowd_wd = np.histogram(time_delay_log_cowd_wd, weights = mixture_weights[carbon_oxygen_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
     center_bins_cowd_wd = (bin_edges_cowd_wd[:-1] + bin_edges_cowd_wd[1:])/2
     bin_width_cowd_wd = np.diff(bin_edges_cowd_wd)
 
@@ -622,16 +591,16 @@ def time_dist_plotter(pathToH5, title, plot_output, filename):
     # Let's do this again for NSNS systems
 
     ## all systems w/ NSNS life time
-    time_life_log_NSNS = np.log10((DCOs_masked['Time'][NSNS_bool]*(1e6)))
-    hist_cowd_NSNS_life, bin_edges_cowd_NSNS_life = np.histogram(time_life_log_NSNS, weights=DCOs_masked['mixture_weight'][NSNS_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    time_life_log_NSNS = np.log10((lifetimes[NSNS_bool]*(1e6)))
+    hist_cowd_NSNS_life, bin_edges_cowd_NSNS_life = np.histogram(time_life_log_NSNS, weights=mixture_weights[NSNS_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
     center_bins_cowd_NSNS_life = (bin_edges_cowd_NSNS_life[:-1] + bin_edges_cowd_NSNS_life[1:])/2
     bin_width_cowd_NSNS_life = np.diff(bin_edges_cowd_NSNS_life)
 
     ax[1].plot(center_bins_cowd_NSNS_life,(hist_cowd_NSNS_life/bin_width_cowd_NSNS_life)*1e-3,color='lightcoral',lw=2, label=r'$\mathrm{t_{life}}$')
 
     ## all systems w/ NSNS coalescence time
-    time_col_log_NSNS = np.log10(((DCOs_masked['Coalescence_Time'][NSNS_bool]*(1e6))))
-    hist_cowd_NSNS_col, bin_edges_cowd_NSNS_col = np.histogram(time_col_log_NSNS, weights=DCOs_masked['mixture_weight'][NSNS_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    time_col_log_NSNS = np.log10(((col_times[NSNS_bool]*(1e6))))
+    hist_cowd_NSNS_col, bin_edges_cowd_NSNS_col = np.histogram(time_col_log_NSNS, weights=mixture_weights[NSNS_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
     center_bins_cowd_NSNS_col = (bin_edges_cowd_NSNS_col[:-1] + bin_edges_cowd_NSNS_col[1:])/2
     bin_width_cowd_NSNS_col = np.diff(bin_edges_cowd_NSNS_col)
 
@@ -639,8 +608,8 @@ def time_dist_plotter(pathToH5, title, plot_output, filename):
 
 
     ## all systems w/ NSNS delay time
-    time_delay_log_NSNS_wd = np.log10((DCOs_masked['Delay_Time'][NSNS_bool]*(1e6)))
-    hist_NSNS, bin_edges_NSNS = np.histogram(time_delay_log_NSNS_wd, weights=DCOs_masked['mixture_weight'][NSNS_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
+    time_delay_log_NSNS_wd = np.log10((delay_times[NSNS_bool]*(1e6)))
+    hist_NSNS, bin_edges_NSNS = np.histogram(time_delay_log_NSNS_wd, weights=mixture_weights[NSNS_bool],bins=np.linspace(7.5,np.log10(age_universe),50))
     center_bins_NSNS = (bin_edges_NSNS[:-1] + bin_edges_NSNS[1:])/2
     bin_width_NSNS = np.diff(bin_edges_NSNS)
 

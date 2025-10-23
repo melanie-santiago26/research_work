@@ -74,28 +74,28 @@ def separations(e,Mmoremass,Mlessmass,t_life):
 
 
 ### This functions serves as a tool to select for WD+WD systems
-def WD_BINARY_BOOLS(dataframe):
+def WD_BINARY_BOOLS(stellar_type_1, stellar_type_2):
 
 # let's first look at if there are only helium white dwarf WD binaries
-    HeWD_bool = np.logical_and(dataframe['Stellar_Type(1)']==10,dataframe['Stellar_Type(2)']==10)
+    HeWD_bool = np.logical_and(stellar_type_1==10,stellar_type_2==10)
 # then carbon oxygen WD
-    COWD_bool = np.logical_and(dataframe['Stellar_Type(1)']==11,dataframe['Stellar_Type(2)']==11)
+    COWD_bool = np.logical_and(stellar_type_1==11,stellar_type_2==11)
 # then oxgen neon WD
-    ONeWD_bool = np.logical_and(dataframe['Stellar_Type(1)']==12,dataframe['Stellar_Type(2)']==12)
+    ONeWD_bool = np.logical_and(stellar_type_1==12,stellar_type_2==12)
 
 # let's look at the combination of WD binaries
 
 # Helium WD combos
-    HeCOWD_bool = np.logical_and(dataframe['Stellar_Type(1)']==10,dataframe['Stellar_Type(2)']==11)
-    HeONeWD_bool = np.logical_and(dataframe['Stellar_Type(1)']==10,dataframe['Stellar_Type(2)']==12)
+    HeCOWD_bool = np.logical_and(stellar_type_1==10,stellar_type_2==11)
+    HeONeWD_bool = np.logical_and(stellar_type_1==10,stellar_type_2==12)
 
 # Carbon Oxygen WD combos
-    COHeWD_bool = np.logical_and(dataframe['Stellar_Type(1)']==11,dataframe['Stellar_Type(2)']==10)
-    COONeWD_bool = np.logical_and(dataframe['Stellar_Type(1)']==11,dataframe['Stellar_Type(2)']==12)
+    COHeWD_bool = np.logical_and(stellar_type_1==11,stellar_type_2==10)
+    COONeWD_bool = np.logical_and(stellar_type_1==11,stellar_type_2==12)
 
 # Oxygen Neon WD combos
-    ONeHeWD_bool = np.logical_and(dataframe['Stellar_Type(1)']==12,dataframe['Stellar_Type(2)']==10)
-    ONeCOWD_bool = np.logical_and(dataframe['Stellar_Type(1)']==12,dataframe['Stellar_Type(2)']==11)
+    ONeHeWD_bool = np.logical_and(stellar_type_1==12,stellar_type_2==10)
+    ONeCOWD_bool = np.logical_and(stellar_type_1==12,stellar_type_2==11)
 
     # let's return all of these bools
     return(HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool)
