@@ -173,6 +173,6 @@ def check_if_SNIA(mass1,mass2):
     # let's now mask which masses fall within the purple region
     Champagne_Supernova = orange_more_massive_bool*orange_less_massive_bool
 
-
-
     return(SN_Ia_HVS,two_star_SNIA,Champagne_Supernova)
+
+
