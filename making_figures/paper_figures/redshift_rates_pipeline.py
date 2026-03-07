@@ -4,28 +4,19 @@
 
 # imports
 import h5py as h5 
-import pandas as pd
-from astropy.table import Table
-from astropy import units as u
-from astropy import constants as const
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-import os
-from scipy import stats
-import seaborn as sns
-import matplotlib as mpl
-import time 
+
 
 plt.rc('text.latex', preamble=r'\usepackage{textgreek}')
 plt.rc('font', family='serif')
 
 # Add the subdir to sys.path
-sys.path.append('./useful_py_scripts/')
+sys.path.append('../../useful_py_scripts/')
 
 # Now you can import the module
 import useful_fncs
-import utils_from_others
 
 # import for axes labels 
 plt.rcParams.update({
@@ -35,7 +26,7 @@ plt.rcParams.update({
 
 
 
-def redshift_rates_plotter(pathToH5, title, plot_output, filename):
+def redshift_rates_plotter(pathToH5, title):
 
     """
     Plotting the redhshift vs. rates plot for NSNS systems and COWD + WD systems
@@ -73,7 +64,6 @@ def redshift_rates_plotter(pathToH5, title, plot_output, filename):
     # creating the mask
     hubble_time = 13.9e3
     condition_mergers = delay_times < hubble_time
-    mergers = np.sum(condition_mergers)
 
 # collecting the rates
     rates_DCO = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate'][()]
@@ -115,7 +105,7 @@ def redshift_rates_plotter(pathToH5, title, plot_output, filename):
     mass_2_merged = mass_2[condition_mergers]
 
     # Chandrasekar mass bool
-    tot_chandra_bool_merged = mass_2_merged + mass_2_merged > 1.4
+    tot_chandra_bool_merged = mass_1_merged + mass_2_merged > 1.4
 
     # masking the other parameters for this Chandrasekar mass criteria
     rates_DCO_masked_chan = rates_DCO_masked[tot_chandra_bool_merged]
@@ -202,7 +192,12 @@ def redshift_rates_plotter(pathToH5, title, plot_output, filename):
 
 #Let's now actually plot!
     plt.figure(figsize=(9,6))
-    plt.plot(redshifts,cowd_rate,linewidth=2,linestyle='--',color='mediumblue',label=r'$\mathrm{COWD + WD}$') # all COWD
+
+# COWD+WD rates
+    plt.plot(redshifts,cowd_rate,linewidth=2,linestyle='-',color='midnightblue',label=r'$\mathrm{COWD + WD}$') # all COWD
+    plt.plot(redshifts,cowd_rate_chan,linewidth=2,linestyle='--',color='mediumblue',label=r'$\mathrm{COWD+WD: M_{tot} > 1.4 M_{\odot}}$') # all COWD
+    plt.plot(redshifts,cowd_rate_shen,linewidth=2,linestyle='--',color='cornflowerblue',label=r'$\mathrm{Two Star SN Ia}$') # Shen 2025 Two Star Sn Ia
+
 
 # NSNS Rate
     plt.plot(redshifts,NSNS_rate,linewidth=2,color='grey',alpha=0.7,label='NSNS')
@@ -231,9 +226,14 @@ def redshift_rates_plotter(pathToH5, title, plot_output, filename):
     plt.title(title, pad=20)
     plt.legend()
 
+    plt.show()
+
 # save figure:
-    plt.savefig(plot_output + filename +".png",bbox_inches='tight',pad_inches=0.1)
+    plt.savefig(title +".png",bbox_inches='tight',pad_inches=0.1)
+    # plt.savefig(title +".pdf",bbox_inches='tight',pad_inches=0.1)
 
 
 # Closing the HDF5 File
     Data.close()
+
+redshift_rates_plotter('/home/jovyan/home/copied_files/N1e6_NSNS_Fid/COMPAS_Output_wWeights.h5', "Fiducial_1e6_NSNS")
