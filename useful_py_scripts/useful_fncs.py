@@ -9,6 +9,7 @@ from astropy import units as u
 from astropy import constants as const
 import numpy as np
 import matplotlib.pyplot as plt
+import utils_from_others
 
 ### time coalescence function based on Ilya Mandel "An Accurate Analytical Fit to the Gravitational-wave Inspiral Duration for Eccentric Binaries" (2021)
 # Eq 5
@@ -174,5 +175,34 @@ def check_if_SNIA(mass1,mass2):
     Champagne_Supernova = orange_more_massive_bool*orange_less_massive_bool
 
     return(SN_Ia_HVS,two_star_SNIA,Champagne_Supernova)
+
+
+"""
+This function creates the condifence intervals on the rates through bootstrapping inspired by Lieke van Son's code: https://github.com/LiekeVanSon/LowMBH_and_StableChannel/blob/master/Code/Fig1_MassDistributions.ipynb
+"""
+# making this a function
+
+def bootstrapping_intervals(rate_2D, boostraps_num, redshifts):
+
+    """
+    rate_2D = the 2 dimensional array of the the rates that has already been masked
+    boostraps_num = number of times you would like to bootstrap
+    redshifts = you array of redhshift bins
+    """
+    
+    indices = np.arange(len(rate_2D)) # indicies is same size of what we want to bootstrap (aka number of systems)
+    rates_DCO_boots = np.zeros((boostraps_num, len(redshifts))) # we want to start with an empty 2D array 
+
+    for b in utils_from_others.progressbar(range(len(rates_DCO_boots)), "Bootstrapping :"): # looping through each redshift bin
+
+        boot_index = np.random.choice(indices, size=len(indices), replace=True)
+        boots_rate = rate_2D[boot_index] # taking a random index corresponding to a particular system and getting what the rate is at each redshift
+        boots_instance = np.sum(boots_rate, axis=0) # now actually computing the rate at each redshift 
+
+        rates_DCO_boots[b] = boots_instance # adding our rate at each redshift to the previous empty array of zeros 
+
+    percentiles = np.percentile(rates_DCO_boots, [10., 50., 90.], axis=0)
+
+    return(percentiles)
 
 
