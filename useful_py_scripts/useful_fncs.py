@@ -201,7 +201,7 @@ def bootstrapping_intervals(rate_2D, boostraps_num, redshifts):
 
         rates_DCO_boots[b] = boots_instance # adding our rate at each redshift to the previous empty array of zeros 
 
-    percentiles = np.percentile(rates_DCO_boots, [10., 50., 90.], axis=0)
+    percentiles = np.percentile(rates_DCO_boots, [5., 50., 95.], axis=0)
 
     return(percentiles)
 
