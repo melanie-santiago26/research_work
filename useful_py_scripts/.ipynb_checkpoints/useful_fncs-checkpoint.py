@@ -112,6 +112,15 @@ def WDWD_bools(dataframe,stellar_type1 = 'Stellar_Type(1)',stellar_type2 = 'Stel
 
 
 """
+This function is used to get all of the WD+WD bianries from one stellar types array
+"""
+def WDWD_bools_from_array(stellar_type1,stellar_type2):
+
+    BWD_BOOL = np.logical_or(np.logical_and(stellar_type1==12,stellar_type2==11),np.logical_or(np.logical_and(stellar_type1==12,stellar_type2==10),np.logical_or(np.logical_and(stellar_type1==11,stellar_type2==12),np.logical_or(np.logical_and(stellar_type1==11,stellar_type2==10),np.logical_or(np.logical_and(stellar_type1==10,stellar_type2==12),np.logical_or(np.logical_and(stellar_type1==10,stellar_type2==11),np.logical_or(np.logical_and(stellar_type1==10,stellar_type2==10),np.logical_or(np.logical_and(stellar_type1==11,stellar_type2==11),np.logical_and(stellar_type1==12,stellar_type2==12)))))))))
+    return BWD_BOOL
+
+
+"""
 This function is used to make a selection of binary systems with at least a carbon oxygen WD
 """
 def COWD_bool(dataframe,stellar_type1 = 'Stellar_Type(1)',stellar_type2 = 'Stellar_Type(2)'):
