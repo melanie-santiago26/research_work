@@ -1,6 +1,6 @@
 ### Research Work - Binary White Dwarfs + Binary Neutron Stars
 
-Work with the Center for Computational Astrophysics at the Flatiron Insititute with Lieke van Son. 
+Work from UC San Diego and the Center for Computational Astrophysics at the Flatiron Insititute with Floor Broekgaarden and Lieke van Son. 
 
 Most of the "important" figures/main findings can be found in the making figures subfolder. 
 
