@@ -44,12 +44,11 @@ def tgw(a,e,Mmoremass,Mlessmass,Data,key,parameter):
 
     return tc.values
 
-"""
-This function will give the maximum separation needed for a bianry to merge within a hubble time given the massesand lifetime of the system
-"""
+
 def separations(e,Mmoremass,Mlessmass,t_life):
 
     """
+    This function will give the maximum separation needed for a bianry to merge within a hubble time given the massesand lifetime of the system
     e = eccentricity
     t_hubble = age of the universe (expected in Myr)
     Mmoremass = mass of the more massive compact object (expected in solar masses!)
@@ -102,44 +101,48 @@ def WD_BINARY_BOOLS(stellar_type_1, stellar_type_2):
     return(HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool)
 
 
-"""
-This function is used to get all of the WD+WD bianries from one dataframe rather than the separate bools
-"""
-def WDWD_bools(dataframe,stellar_type1 = 'Stellar_Type(1)',stellar_type2 = 'Stellar_Type(2)'):
 
+def WDWD_bools(dataframe,stellar_type1 = 'Stellar_Type(1)',stellar_type2 = 'Stellar_Type(2)'):
+    """
+    This function is used to get all of the WD+WD bianries from one dataframe rather than the separate bools
+    """
     BWD_BOOL = np.logical_or(np.logical_and(dataframe[stellar_type1]==12,dataframe[stellar_type2]==11),np.logical_or(np.logical_and(dataframe[stellar_type1]==12,dataframe[stellar_type2]==10),np.logical_or(np.logical_and(dataframe[stellar_type1]==11,dataframe[stellar_type2]==12),np.logical_or(np.logical_and(dataframe[stellar_type1]==11,dataframe[stellar_type2]==10),np.logical_or(np.logical_and(dataframe[stellar_type1]==10,dataframe[stellar_type2]==12),np.logical_or(np.logical_and(dataframe[stellar_type1]==10,dataframe[stellar_type2]==11),np.logical_or(np.logical_and(dataframe[stellar_type1]==10,dataframe[stellar_type2]==10),np.logical_or(np.logical_and(dataframe[stellar_type1]==11,dataframe[stellar_type2]==11),np.logical_and(dataframe[stellar_type1]==12,dataframe[stellar_type2]==12)))))))))
     return BWD_BOOL
 
 
-"""
-This function is used to get all of the WD+WD bianries from one stellar types array
-"""
-def WDWD_bools_from_array(stellar_type1,stellar_type2):
 
+def WDWD_bools_from_array(stellar_type1,stellar_type2):
+    """
+    This function is used to get all of the WD+WD bianries from one stellar types array
+    """
     BWD_BOOL = np.logical_or(np.logical_and(stellar_type1==12,stellar_type2==11),np.logical_or(np.logical_and(stellar_type1==12,stellar_type2==10),np.logical_or(np.logical_and(stellar_type1==11,stellar_type2==12),np.logical_or(np.logical_and(stellar_type1==11,stellar_type2==10),np.logical_or(np.logical_and(stellar_type1==10,stellar_type2==12),np.logical_or(np.logical_and(stellar_type1==10,stellar_type2==11),np.logical_or(np.logical_and(stellar_type1==10,stellar_type2==10),np.logical_or(np.logical_and(stellar_type1==11,stellar_type2==11),np.logical_and(stellar_type1==12,stellar_type2==12)))))))))
     return BWD_BOOL
 
 
-"""
-This function is used to make a selection of binary systems with at least a carbon oxygen WD
-"""
-def COWD_bool(dataframe,stellar_type1 = 'Stellar_Type(1)',stellar_type2 = 'Stellar_Type(2)'):
-    cowd_bool = np.logical_or(dataframe[stellar_type1]==11,dataframe[stellar_type2]==11)
 
-"""
-This functions is to define the lines used as boundaries in check_if_SNIA.
-"""
+def COWD_bool(dataframe,stellar_type1 = 'Stellar_Type(1)',stellar_type2 = 'Stellar_Type(2)'):
+    """
+    This function is used to make a selection of binary systems with at least a carbon oxygen WD
+    """
+    cowd_bool = np.logical_or(dataframe[stellar_type1]==11,dataframe[stellar_type2]==11)
+    return cowd_bool
+
+
 def line(x,slope,b):
+    """
+    This functions is to define the lines used as boundaries in check_if_SNIA.
+    """
     y = slope*x +b
     return(np.array(y)) 
 
-"""
-This functions takes systems and assigns flags to what type of SN Ia it is if any.
-The boundaries for the mass cuts and SN Ia categorizations come from Shen 2025: https://arxiv.org/abs/2502.04451. 
-"""
+
 # let's test the function for just the red region
 def check_if_SNIA(mass1,mass2):
 
+    """
+    This functions takes systems and assigns flags to what type of SN Ia it is if any.
+    The boundaries for the mass cuts and SN Ia categorizations come from Shen 2025: https://arxiv.org/abs/2502.04451. 
+    """
     # let's select the masses from the compas output
     M_more_massive = np.maximum(mass1,mass2)
     M_less_massive = np.minimum(mass1,mass2)
@@ -186,14 +189,14 @@ def check_if_SNIA(mass1,mass2):
     return(SN_Ia_HVS,two_star_SNIA,Champagne_Supernova)
 
 
-"""
-This function creates the condifence intervals on the rates through bootstrapping inspired by Lieke van Son's code: https://github.com/LiekeVanSon/LowMBH_and_StableChannel/blob/master/Code/Fig1_MassDistributions.ipynb
-"""
+
 # making this a function
 
 def bootstrapping_intervals(rate_2D, boostraps_num, redshifts):
 
     """
+    This function creates the condifence intervals on the rates through bootstrapping inspired by Lieke van Son's code
+    https://github.com/LiekeVanSon/LowMBH_and_StableChannel/blob/master/Code/Fig1_MassDistributions.ipynb
     rate_2D = the 2 dimensional array of the the rates that has already been masked
     boostraps_num = number of times you would like to bootstrap
     redshifts = you array of redhshift bins
@@ -214,4 +217,136 @@ def bootstrapping_intervals(rate_2D, boostraps_num, redshifts):
 
     return(percentiles)
 
+
+
+def merger_rate_z0_result_WDWD(pathToH5):
+
+    """
+    This function gathers the local rate for each subpopulation in the WDWD optimized output of COMPAS
+    pathToH5 = file path to the COMPAS output hdf5 file 
+    """
+    
+    # we first need to gather the information for the file of interest
+    # reading in the HDF5 file
+
+    Data  = h5.File(pathToH5, "r")
+
+    # To make the variations plot we need the stellar types, masses, and rate at z=0
+
+    DCOs = Data['BSE_Double_Compact_Objects'] # gathering the DCO group
+    DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
+
+
+    # merges in a Hubble Time
+
+    lifetimes_all = DCOs['Time'][()]
+    lifetimes_DCO = lifetimes_all[DCO_mask]
+
+    col_times_all = DCOs['Coalescence_Time'][()]
+    col_times_DCO = col_times_all[DCO_mask]
+
+    delay_times_DCO = lifetimes_DCO + col_times_DCO
+    condition_mergers = delay_times_DCO < 14100 # Myr
+
+    
+    # HDF5 files are most efficent if you apply the mask after reading in the key of interest
+
+    stellar_types_1_all = DCOs['Stellar_Type(1)'][()]
+    stellar_types_1 = stellar_types_1_all[DCO_mask]
+    stellar_type_1_merged = stellar_types_1[condition_mergers]
+
+    stellar_types_2_all = DCOs['Stellar_Type(2)'][()]
+    stellar_types_2 = stellar_types_2_all[DCO_mask]
+    stellar_type_2_merged = stellar_types_2[condition_mergers]
+    
+    mass1_all = DCOs['Mass(1)'][()]
+    mass1 = mass1_all[DCO_mask]
+    mass1_merged = mass1[condition_mergers]
+
+    mass2_all = DCOs['Mass(2)'][()]
+    mass2 = mass2_all[DCO_mask]
+    mass2_merged = mass2[condition_mergers]
+    
+    rates_z0_DCO = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate_z0'][()]
+    rates_z0_DCO_merged = rates_z0_DCO[condition_mergers]
+
+    Data.close()
+
+    # let's make sure that at least one of these white dwarfs are COWD
+    HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = WD_BINARY_BOOLS(stellar_type_1_merged, stellar_type_2_merged)
+    carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
+
+
+    # let's now sort our data into the mass regimes we care about
+    # let's add the flags for specific calssifications of SN Ia
+
+    SN_Ia_HVS,two_star_SNIA,Champagne_Supernova = check_if_SNIA(mass1_merged[carbon_oxygen_bool],mass2_merged[carbon_oxygen_bool])
+
+    # let's now gather the merger rate at redshift zero
+    WDWD_merger_rate_Z0 = rates_z0_DCO_merged[carbon_oxygen_bool]
+    cowd_rate = np.sum(WDWD_merger_rate_Z0)
+
+    # # let's now get the values of these merger rates for all of the systems that fall within this specific regime
+    two_star_SNIA_z0_rate = np.sum(WDWD_merger_rate_Z0[two_star_SNIA==True])
+
+
+    #let's get the merger rates for Mtot>mchan
+    mtot_chan_more = mass1_merged + mass2_merged > 1.4
+    mtot_chan_bool = carbon_oxygen_bool*mtot_chan_more
+    mchan_rate = np.sum(rates_z0_DCO_merged[mtot_chan_bool])
+
+
+    return([cowd_rate,mchan_rate,two_star_SNIA_z0_rate])
+
+
+def merger_rate_z0_result_NSNS(pathToH5):
+
+    """
+    This function gathers the local rate for each subpopulation in the NSNS optimized output of COMPAS
+    pathToH5 = file path to the COMPAS output hdf5 file 
+    """
+    
+    # we first need to gather the information for the file of interest
+    # reading in the HDF5 file
+
+    Data  = h5.File(pathToH5, "r")
+
+    # To make the variations plot we need the stellar types, masses, and rate at z=0
+
+    DCOs = Data['BSE_Double_Compact_Objects'] # gathering the DCO group
+    DCO_mask = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
+
+    # merges in a Hubble Time
+
+    lifetimes_all = DCOs['Time'][()]
+    lifetimes_DCO = lifetimes_all[DCO_mask]
+
+    col_times_all = DCOs['Coalescence_Time'][()]
+    col_times_DCO = col_times_all[DCO_mask]
+
+    delay_times_DCO = lifetimes_DCO + col_times_DCO
+    condition_mergers = delay_times_DCO < 14100 # Myr
+
+    
+    # HDF5 files are most efficent if you apply the mask after reading in the key of interest
+
+    stellar_types_1_all = DCOs['Stellar_Type(1)'][()]
+    stellar_types_1 = stellar_types_1_all[DCO_mask]
+    stellar_type_1_merged = stellar_types_1[condition_mergers]
+
+    stellar_types_2_all = DCOs['Stellar_Type(2)'][()]
+    stellar_types_2 = stellar_types_2_all[DCO_mask]
+    stellar_type_2_merged = stellar_types_2[condition_mergers]
+
+    rates_z0_DCO = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate_z0'][()]
+    rates_z0_DCO_merged = rates_z0_DCO[condition_mergers]
+
+    Data.close()
+
+    # the NSNS merger rate
+    # let's gather the NSNS merger information
+    NSNS_bool = np.logical_and(stellar_type_1_merged==13,stellar_type_2_merged==13)
+    nsns_rate = np.sum(rates_z0_DCO_merged[NSNS_bool],axis=0)
+
+    return(nsns_rate)
 
