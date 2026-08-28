@@ -287,6 +287,7 @@ def merger_rate_z0_result_WDWD(pathToH5):
     cowd_rate = np.sum(WDWD_merger_rate_Z0)
 
     # # let's now get the values of these merger rates for all of the systems that fall within this specific regime
+    HVS_z0_rate = np.sum(WDWD_merger_rate_Z0[SN_Ia_HVS==True])
     two_star_SNIA_z0_rate = np.sum(WDWD_merger_rate_Z0[two_star_SNIA==True])
 
 
@@ -296,7 +297,7 @@ def merger_rate_z0_result_WDWD(pathToH5):
     mchan_rate = np.sum(rates_z0_DCO_merged[mtot_chan_bool])
 
 
-    return([cowd_rate,mchan_rate,two_star_SNIA_z0_rate])
+    return([cowd_rate,mchan_rate,HVS_z0_rate,two_star_SNIA_z0_rate])
 
 
 def merger_rate_z0_result_NSNS(pathToH5):
