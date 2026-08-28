@@ -157,8 +157,14 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
     super_chan_rate_ratio = super_chan_rate/tot_subpop
     HVS_rate_ratio = HVS_rate/tot_subpop
     ratios = np.array([cowd_rate_ratio, super_chan_rate_ratio, HVS_rate_ratio])
+
+    # gather the redshifts 
+    redshifts = np.array([redshifts_NSNS, redshifts_WDWD])
+
+    Data_NSNS.close()
+    Data_WDWD.close()
     
-    return(rates, boostrap_percentiles, ratios)
+    return(redshifts, rates, boostrap_percentiles, ratios)
 
 
 
