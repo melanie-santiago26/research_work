@@ -351,3 +351,40 @@ def merger_rate_z0_result_NSNS(pathToH5):
 
     return(nsns_rate)
 
+def check_NSNS_number(pathtoH5):
+    ## NSNS optimized run
+
+    # let's first look at the NSNS_output
+    Data_NSNS  = h5.File(pathtoH5, "r")
+
+    DCOs_NSNS = Data_NSNS['BSE_Double_Compact_Objects'] # getting the DCO objects
+
+    # gathering the double compact objects that we have computed rates for
+    DCO_mask_NSNS = Data_NSNS['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['DCOmask'][()]
+
+    # merges in a Hubble Time
+    # times (these should be in Myr)
+    lifetimes_all = DCOs_NSNS['Time'][()]
+    lifetimes_DCO = lifetimes_all[DCO_mask_NSNS]
+
+    col_times_all = DCOs_NSNS['Coalescence_Time'][()]
+    col_times_DCO = col_times_all[DCO_mask_NSNS]
+
+    delay_times_DCO = lifetimes_DCO + col_times_DCO
+    condition_mergers = delay_times_DCO < 14100 # Myr
+
+    # gathering just the DCO objects that merge within a Hubble Time
+    stellar_types_all_1 = DCOs_NSNS['Stellar_Type(1)'][()]
+    stellar_types_1_DCO = stellar_types_all_1[DCO_mask_NSNS]
+    stellar_types_1_merged = stellar_types_1_DCO[condition_mergers]
+
+    stellar_types_all_2 = DCOs_NSNS['Stellar_Type(2)'][()]
+    stellar_types_2_DCO = stellar_types_all_2[DCO_mask_NSNS]
+    stellar_types_2_merged = stellar_types_2_DCO[condition_mergers]
+
+    # bool for just the NSNS systems
+    NSNS_systems_bool = np.logical_and(stellar_types_1_merged==13, stellar_types_2_merged==13)
+
+    num_NSNS_systems = np.sum(NSNS_systems_bool)
+
+    return num_NSNS_systems
