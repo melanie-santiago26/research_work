@@ -129,6 +129,16 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
     tot_mass_cond = mass_1_merged + mass_2_merged > 1.4
     super_chan_bool = carbon_oxygen_bool_WDWD_merged_WDopt*tot_mass_cond
 
+    # COWD + COWD 
+    # violent merger - unequal mass + COWD+COWD
+    mass_unequal_conditon = mass_1_merged >= 1.0
+    violent_merger_unequal_bool = mass_unequal_conditon*COWD_bool
+
+    # violent merger - equal mass (q_cr = 0.9) + COWD+COWD
+    mass_min_criteria = np.logical_and(mass_1_merged>=0.8, mass_2_merged>=0.8)
+    critical_mass_ratio_bool = np.logical_and(M2/M1 >= 0.9, mass_min_criteria)
+    violent_merger_equal_bool = critical_mass_ratio_bool*COWD_bool
+
     # D6 HVS
     SN_Ia_HVS,two_star_SNIA,Champagne_Supernova = useful_fncs.check_if_SNIA(mass_1_merged, mass_2_merged)
 
@@ -137,9 +147,11 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
     NSNS_rate = np.sum(rates_DCO_masked[NSNS_systems_bool], axis=0)
     cowd_rate = np.sum(rates_DCO_masked_WDopt[carbon_oxygen_bool_WDWD_merged_WDopt], axis=0)
     super_chan_rate = np.sum(rates_DCO_masked_WDopt[super_chan_bool], axis=0)
+    violent_merger_unequal_rate = np.sum(rates_DCO_masked_WDopt[violent_merger_unequal_bool], axis=0)
+    violent_merger_equal_rate = np.sum(rates_DCO_masked_WDopt[violent_merger_equal_bool], axis=0)
     HVS_rate = np.sum(rates_DCO_masked_WDopt[SN_Ia_HVS], axis=0)
 
-    rates = np.array([NSNS_rate, cowd_rate, super_chan_rate, HVS_rate])
+    rates = np.array([NSNS_rate, cowd_rate, super_chan_rate, violent_merger_unequal_rate, violent_merger_equal_rate, HVS_rate])
 
     # Let's boostrap these rates
     NSNS_rate_2D = rates_DCO_masked[NSNS_systems_bool] # NSNS optimized
@@ -151,12 +163,14 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
     boostrap_percentiles = np.array([percentiles])#, percentiles_WDWD])
 
     # Let's compute the ratio of each WDWD subpopulation over redshift
-    tot_subpop = cowd_rate + super_chan_rate + HVS_rate
+    tot_subpop = cowd_rate + super_chan_rate + violent_merger_unequal_rate + violent_merger_equal_rate + HVS_rate
     # the ratios
     cowd_rate_ratio = cowd_rate/tot_subpop
     super_chan_rate_ratio = super_chan_rate/tot_subpop
+    violent_merger_unequal_ratio = violent_merger_unequal_rate/tot_subpop
+    violen_merger_equal_ratio = violent_merger_equal_rate/tot_subpop
     HVS_rate_ratio = HVS_rate/tot_subpop
-    ratios = np.array([cowd_rate_ratio, super_chan_rate_ratio, HVS_rate_ratio])
+    ratios = np.array([cowd_rate_ratio, super_chan_rate_ratio, violent_merger_unequal_ratio, violen_merger_equal_ratio, HVS_rate_ratio])
 
     # gather the redshifts 
     redshifts = np.array([redshifts_NSNS, redshifts_WDWD])

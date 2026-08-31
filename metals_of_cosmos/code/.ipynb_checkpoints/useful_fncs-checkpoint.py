@@ -276,9 +276,14 @@ def merger_rate_z0_result_WDWD(pathToH5):
     HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = WD_BINARY_BOOLS(stellar_type_1_merged, stellar_type_2_merged)
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
 
+    # violent merger - unequal mass + COWD+COWD
+    mass_unequal_conditon = mass1_merged >= 1.0
+    violent_merger_unequal_bool = mass_unequal_conditon*COWD_bool
 
-    # let's now sort our data into the mass regimes we care about
-    # let's add the flags for specific calssifications of SN Ia
+    # violent merger - equal mass (q_cr = 0.9) + COWD+COWD
+    mass_min_criteria = mass1_merged>=0.8
+    critical_mass_ratio_bool = np.logical_and(mass2_merged/mass1_merged >= 0.9, mass_min_criteria)
+    violent_merger_equal_bool = critical_mass_ratio_bool*COWD_bool
 
     SN_Ia_HVS,two_star_SNIA,Champagne_Supernova = check_if_SNIA(mass1_merged[carbon_oxygen_bool],mass2_merged[carbon_oxygen_bool])
 
@@ -286,18 +291,24 @@ def merger_rate_z0_result_WDWD(pathToH5):
     WDWD_merger_rate_Z0 = rates_z0_DCO_merged[carbon_oxygen_bool]
     cowd_rate = np.sum(WDWD_merger_rate_Z0)
 
-    # # let's now get the values of these merger rates for all of the systems that fall within this specific regime
-    HVS_z0_rate = np.sum(WDWD_merger_rate_Z0[SN_Ia_HVS==True])
-    two_star_SNIA_z0_rate = np.sum(WDWD_merger_rate_Z0[two_star_SNIA==True])
-
-
     #let's get the merger rates for Mtot>mchan
     mtot_chan_more = mass1_merged + mass2_merged > 1.4
     mtot_chan_bool = carbon_oxygen_bool*mtot_chan_more
     mchan_rate = np.sum(rates_z0_DCO_merged[mtot_chan_bool])
 
+    # violent merger - unequal
+    violent_merger_unequal_rate = np.sum(rates_z0_DCO_merged[violent_merger_unequal_bool])
 
-    return([cowd_rate,mchan_rate,HVS_z0_rate,two_star_SNIA_z0_rate])
+    # violent merger- equal
+    violent_merger_equal_rate = np.sum(rates_z0_DCO_merged[violent_merger_equal_bool])
+    
+    # # let's now get the values of these merger rates for all of the systems that fall within this specific regime
+    HVS_z0_rate = np.sum(WDWD_merger_rate_Z0[SN_Ia_HVS==True])
+    # two_star_SNIA_z0_rate = np.sum(WDWD_merger_rate_Z0[two_star_SNIA==True])
+
+
+
+    return([cowd_rate ,mchan_rate, violent_merger_unequal_rate, violent_merger_equal_rate, HVS_z0_rate])
 
 
 def merger_rate_z0_result_NSNS(pathToH5):
