@@ -266,6 +266,10 @@ def merger_rate_z0_result_WDWD(pathToH5):
     mass2_all = DCOs['Mass(2)'][()]
     mass2 = mass2_all[DCO_mask]
     mass2_merged = mass2[condition_mergers]
+
+    # we are going to conditions that M1>M2 (not considering mass ratio reversal cases)
+    M1 = np.maximum(mass1_merged, mass2_merged)
+    M2 = np.minimum(mass1_merged, mass2_merged)
     
     rates_z0_DCO = Data['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate_z0'][()]
     rates_z0_DCO_merged = rates_z0_DCO[condition_mergers]
@@ -276,16 +280,18 @@ def merger_rate_z0_result_WDWD(pathToH5):
     HeWD_bool,COWD_bool,ONeWD_bool,HeCOWD_bool,HeONeWD_bool,COHeWD_bool,COONeWD_bool,ONeHeWD_bool,ONeCOWD_bool = WD_BINARY_BOOLS(stellar_type_1_merged, stellar_type_2_merged)
     carbon_oxygen_bool = np.logical_or(ONeCOWD_bool,np.logical_or(COONeWD_bool,np.logical_or(COHeWD_bool,np.logical_or(COWD_bool,HeCOWD_bool))))
 
+    # COWD + COWD 
     # violent merger - unequal mass + COWD+COWD
-    mass_unequal_conditon = mass1_merged >= 1.0
+    mass_unequal_conditon = M1 >= 1.1
     violent_merger_unequal_bool = mass_unequal_conditon*COWD_bool
 
     # violent merger - equal mass (q_cr = 0.9) + COWD+COWD
-    mass_min_criteria = mass1_merged>=0.8
-    critical_mass_ratio_bool = np.logical_and(mass2_merged/mass1_merged >= 0.9, mass_min_criteria)
+    mass_min_criteria = M1>=0.8
+    critical_mass_ratio_bool = np.logical_and(M2/M1 >= 0.9, mass_min_criteria)
     violent_merger_equal_bool = critical_mass_ratio_bool*COWD_bool
 
     SN_Ia_HVS,two_star_SNIA,Champagne_Supernova = check_if_SNIA(mass1_merged[carbon_oxygen_bool],mass2_merged[carbon_oxygen_bool])
+
 
     # let's now gather the merger rate at redshift zero
     WDWD_merger_rate_Z0 = rates_z0_DCO_merged[carbon_oxygen_bool]
