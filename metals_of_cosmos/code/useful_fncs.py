@@ -154,15 +154,9 @@ def check_if_SNIA(mass1,mass2):
 
     # let's now make regimes based on Ken Shen 2025
     # red region, we define the border cases to be read from left to right so a region does not take systems that are on the left border but it does take its right border
-    # Mass 1 condition
-    red_more_massive_bool = np.logical_and(M_more_massive<1.0,
-                                           M_more_massive>=M_less_massive)
-    # Mass 2 condition
-    red_less_massive_bool = np.logical_and(M_less_massive>=line(M_more_massive,-1.5,1.875),
-                                       M_less_massive<line(M_more_massive,-1.5,2.0))
 
-    # let's now mask which masses fall within the red region
-    SN_Ia_HVS = red_more_massive_bool*red_less_massive_bool
+    SN_Ia_HVS = np.logical_and(np.logical_and(M_more_massive<1.0, M_more_massive>=M_less_massive),
+                   np.logical_and(M_less_massive>=line(M_more_massive,-1.8,2.1),M_less_massive<line(M_more_massive,-1.8,2.24)))
 
 
     # purple region
