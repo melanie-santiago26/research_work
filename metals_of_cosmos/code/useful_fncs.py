@@ -276,7 +276,7 @@ def merger_rate_z0_result_WDWD(pathToH5):
 
     # COWD + COWD 
     # violent merger - unequal mass + COWD+COWD
-    mass_unequal_conditon = M1 >= 1.1
+    mass_unequal_conditon = np.logical_and(M1 >= 1.1, M2!=M1)
     violent_merger_unequal_bool = mass_unequal_conditon*COWD_bool
 
     # violent merger - equal mass (q_cr = 0.9) + COWD+COWD
