@@ -240,7 +240,7 @@ def merger_rate_z0_result_WDWD(pathToH5):
     col_times_DCO = col_times_all[DCO_mask]
 
     delay_times_DCO = lifetimes_DCO + col_times_DCO
-    condition_mergers = delay_times_DCO < 14100 # Myr
+    condition_mergers = delay_times_DCO < 13800 # Myr
 
     
     # HDF5 files are most efficent if you apply the mask after reading in the key of interest
@@ -306,9 +306,10 @@ def merger_rate_z0_result_WDWD(pathToH5):
     HVS_z0_rate = np.sum(WDWD_merger_rate_Z0[SN_Ia_HVS==True])
     # two_star_SNIA_z0_rate = np.sum(WDWD_merger_rate_Z0[two_star_SNIA==True])
 
+    tot_subpop = cowd_rate + mchan_rate + violent_merger_unequal_rate + violent_merger_equal_rate + HVS_z0_rate
 
 
-    return([cowd_rate ,mchan_rate, violent_merger_unequal_rate, violent_merger_equal_rate, HVS_z0_rate])
+    return([cowd_rate ,mchan_rate, violent_merger_unequal_rate, violent_merger_equal_rate, HVS_z0_rate, tot_subpop])
 
 
 def merger_rate_z0_result_NSNS(pathToH5):
@@ -337,7 +338,7 @@ def merger_rate_z0_result_NSNS(pathToH5):
     col_times_DCO = col_times_all[DCO_mask]
 
     delay_times_DCO = lifetimes_DCO + col_times_DCO
-    condition_mergers = delay_times_DCO < 14100 # Myr
+    condition_mergers = delay_times_DCO < 13800 # Myr
 
     
     # HDF5 files are most efficent if you apply the mask after reading in the key of interest
@@ -382,7 +383,7 @@ def check_NSNS_number(pathtoH5):
     col_times_DCO = col_times_all[DCO_mask_NSNS]
 
     delay_times_DCO = lifetimes_DCO + col_times_DCO
-    condition_mergers = delay_times_DCO < 14100 # Myr
+    condition_mergers = delay_times_DCO < 13800 # Myr
 
     # gathering just the DCO objects that merge within a Hubble Time
     stellar_types_all_1 = DCOs_NSNS['Stellar_Type(1)'][()]

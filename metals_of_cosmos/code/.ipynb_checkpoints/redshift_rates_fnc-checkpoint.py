@@ -34,7 +34,7 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
     col_times_DCO = col_times_all[DCO_mask_NSNS]
 
     delay_times_DCO = lifetimes_DCO + col_times_DCO
-    condition_mergers = delay_times_DCO < 14100 # Myr
+    condition_mergers = delay_times_DCO < 13800 # Myr
 
     # gathering the rates data
     rates_DCO = Data_NSNS['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate'][()]
@@ -85,7 +85,7 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
     col_times_DCO_WDWD = col_times_all_WDWD[DCO_mask_WDWD]
 
     delay_times_DCO_WDWD = lifetimes_DCO_WDWD + col_times_DCO_WDWD
-    condition_mergers_WDopt = delay_times_DCO_WDWD < 14100
+    condition_mergers_WDopt = delay_times_DCO_WDWD < 13800
 
     # gathering the rates data
     rates_DCO_WDopt = Data_WDWD['Rates_mu00.025_muz-0.049_alpha-1.79_sigma01.129_sigmaz0.048']['merger_rate'][()]
@@ -131,16 +131,16 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
 
     # COWD + COWD 
     # violent merger - unequal mass + COWD+COWD
-    mass_unequal_conditon = mass_1_merged >= 1.0
+    mass_unequal_conditon = np.logical_and(M1 >= 1.1, M2!=M1)
     violent_merger_unequal_bool = mass_unequal_conditon*COWD_bool
 
     # violent merger - equal mass (q_cr = 0.9) + COWD+COWD
-    mass_min_criteria = np.logical_and(mass_1_merged>=0.8, mass_2_merged>=0.8)
+    mass_min_criteria = M1 >= 0.8
     critical_mass_ratio_bool = np.logical_and(M2/M1 >= 0.9, mass_min_criteria)
     violent_merger_equal_bool = critical_mass_ratio_bool*COWD_bool
 
     # D6 HVS
-    SN_Ia_HVS,two_star_SNIA,Champagne_Supernova = useful_fncs.check_if_SNIA(mass_1_merged, mass_2_merged)
+    SN_Ia_HVS,two_star_SNIA,Champagne_Supernova = useful_fncs.check_if_SNIA(mass_1_merged[carbon_oxygen_bool_WDWD_merged_WDopt], mass_2_merged[carbon_oxygen_bool_WDWD_merged_WDopt])
 
     # Let's compute the merger rates
 
@@ -149,9 +149,11 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
     super_chan_rate = np.sum(rates_DCO_masked_WDopt[super_chan_bool], axis=0)
     violent_merger_unequal_rate = np.sum(rates_DCO_masked_WDopt[violent_merger_unequal_bool], axis=0)
     violent_merger_equal_rate = np.sum(rates_DCO_masked_WDopt[violent_merger_equal_bool], axis=0)
-    HVS_rate = np.sum(rates_DCO_masked_WDopt[SN_Ia_HVS], axis=0)
+    WDWD_merger_rate = rates_DCO_masked_WDopt[carbon_oxygen_bool_WDWD_merged_WDopt]
+    HVS_rate = np.sum(WDWD_merger_rate[SN_Ia_HVS], axis=0)
+    tot_dwd_subpop = cowd_rate + super_chan_rate + violent_merger_unequal_rate + violent_merger_equal_rate + HVS_rate
 
-    rates = np.array([NSNS_rate, cowd_rate, super_chan_rate, violent_merger_unequal_rate, violent_merger_equal_rate, HVS_rate])
+    rates = np.array([NSNS_rate, cowd_rate, super_chan_rate, violent_merger_unequal_rate, violent_merger_equal_rate, HVS_rate, tot_dwd_subpop])
 
     # Let's boostrap these rates
     NSNS_rate_2D = rates_DCO_masked[NSNS_systems_bool] # NSNS optimized
@@ -162,23 +164,13 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
 
     boostrap_percentiles = np.array([percentiles])#, percentiles_WDWD])
 
-    # Let's compute the ratio of each WDWD subpopulation over redshift
-    tot_subpop = cowd_rate + super_chan_rate + violent_merger_unequal_rate + violent_merger_equal_rate + HVS_rate
-    # the ratios
-    cowd_rate_ratio = cowd_rate/tot_subpop
-    super_chan_rate_ratio = super_chan_rate/tot_subpop
-    violent_merger_unequal_ratio = violent_merger_unequal_rate/tot_subpop
-    violen_merger_equal_ratio = violent_merger_equal_rate/tot_subpop
-    HVS_rate_ratio = HVS_rate/tot_subpop
-    ratios = np.array([cowd_rate_ratio, super_chan_rate_ratio, violent_merger_unequal_ratio, violen_merger_equal_ratio, HVS_rate_ratio])
-
     # gather the redshifts 
     redshifts = np.array([redshifts_NSNS, redshifts_WDWD])
 
     Data_NSNS.close()
     Data_WDWD.close()
     
-    return(redshifts, rates, boostrap_percentiles, ratios)
+    return(redshifts, rates, boostrap_percentiles)
 
 
 
