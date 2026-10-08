@@ -54,12 +54,6 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
     # bool for just the NSNS systems
     NSNS_systems_bool = np.logical_and(stellar_types_1_merged==13, stellar_types_2_merged==13)
 
-    # gathering the mixture weight info
-    mixture_weights_all = DCOs_NSNS['mixture_weight'][()]
-    mixtrue_weights_DCO = mixture_weights_all[DCO_mask_NSNS]
-    mixture_weights_merged = mixtrue_weights_DCO[condition_mergers]
-    mixture_weights_merged_NSNS = mixture_weights_merged[NSNS_systems_bool]
-
 
 
     # Let's do the same for the WDWD systems
@@ -113,11 +107,6 @@ def redshift_rates_info(pathtoh5_NSNS, pathtoh5_WDWD):
     # we are going to conditions that M1>M2 (not considering mass ratio reversal cases)
     M1 = np.maximum(mass_1_merged, mass_2_merged)
     M2 = np.minimum(mass_1_merged, mass_2_merged)
-
-    # gathering the mixture weight info
-    mixture_weights_all_WDopt = DCOs_WDWD['mixture_weight'][()]
-    mixtrue_weights_dco_WDopt = mixture_weights_all_WDopt[DCO_mask_WDWD]
-    mixtrue_weights_merged_WDopt = mixtrue_weights_dco_WDopt[condition_mergers_WDopt]
 
     # let's find the bools for each of our progenitor systems
 
